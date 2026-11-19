@@ -4,33 +4,41 @@ description: A remarketing ad for one exam — its facts at the head and an offe
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
 faces:
-  - { family: CircularXX, weight: 400 }
+  - { family: CircularXX, weight: 300 }
+  - { family: CircularXX, weight: 500 }
   - { family: CircularXX, weight: 700 }
+  - { family: CircularXX, weight: 900 }
 fonts:
   CircularXX: { alternatives: [Inter, Manrope, DM Sans] }
 formats: [grid, story]
 slots:
   # The head's layout. Each named variant is a configuration that defaults it; the brief may
-  # still write it in the frontmatter. Not drawn yet: the first composition has one head.
+  # still write it in the frontmatter. Only `vitrine` is drawn so far.
   cabeca: { type: enum, values: [vitrine, faixa, lateral, manchete, noturna], default: vitrine }
-  # The offer's layout, the same way. Not drawn yet.
+  # The offer's layout, the same way. Only `cartao` is drawn so far.
   oferta: { type: enum, values: [cartao, dupla, lista, chamada, impacto], default: cartao }
-  # The exam, written once for every artwork: a status line, the exam's name, the post, then
-  # `Label: value` lines (`Vagas:`, `Salário:`, `Banca:`, `Aprovação:`).
+  # The exam, written once for every artwork. Lines with no label are, in order, the status
+  # line, the exam's name (drawn in capitals) and supporting lines. `Vagas:` and `Banca:` join
+  # the supporting lines; `Salário:` is the salary line, drawn without its label; `Aprovação:`
+  # is the proof drawn under the offer.
   concurso: { type: rich-text, required: true, max: 600 }
-  # One artwork per version: the offer version and the timeless one are two `::versao`. Its
-  # lines are `Label: value` (`Oferta:`, `Desconto:`, `Prazo:`, `Garantia:`, `Bonus:`,
-  # `Depoimento:`). `max` counts versions.
+  # One artwork per version: the offer version and the timeless one are two `::versao`. In the
+  # card, `Oferta:` is its title, `Desconto:` (or `Destaque:`) the band, and `Prazo:`,
+  # `Garantia:` or `Cupom:` the foot. `Bonus:` and `Depoimento:` are read by layouts to come.
+  # `max` counts versions.
   versao: { type: rich-text, repeat: true, min: 1, max: 4 }
   # The head's photograph, full bleed: a building, a stock image or a generated one.
   foto: { type: image }
   # A teacher cut out with no background, drawn over the photograph. Not drawn yet.
   recorte: { type: image }
-# What a configuration may change (Tyto ADR 0153). Placeholders until the art is built against
-# the reference PSDs; `tests/values.test.ts` pins them equal to the ones the code falls back to.
+# What a configuration may change (Tyto ADR 0153). Each default is the reference's (piece 38 of
+# the study); `tests/values.test.ts` pins them equal to the ones the code falls back to.
 values:
-  # The logo and the offer's words.
-  accent: { type: color, default: '#1f4fa3' }
-  paper: { type: color, default: '#ffffff' }
-  # The exam's words.
-  ink: { type: color, default: '#1a1a1a' }
+  # The exam's name, the card's outline and its band.
+  accent: { type: color, default: '#1363d0' }
+  # The panel under the words.
+  paper: { type: color, default: '#f7f4f4' }
+  # Every word on the panel.
+  ink: { type: color, default: '#4d4d4d' }
+  # The words on the band.
+  on-accent: { type: color, default: '#eceaea' }

@@ -1,7 +1,7 @@
 import { noBrandKit, noFiles } from '@tyto/core';
 import { describe, expect, it } from 'vitest';
 
-import { MARGIN, build } from './template.js';
+import { TEXT_MARGIN as MARGIN, build } from './template.js';
 
 import type {
   Frame,
@@ -171,8 +171,8 @@ describe.each(['grid', 'story'] as const)('the %s format', (format) => {
     expect(frame.size).toEqual(FORMATS[format]);
   });
 
-  it('draws the exam and the offer, the exam above', () => {
-    const exam = placed.find((item) => wordsOf(item).includes('QC Regula'));
+  it('draws the exam’s name in capitals, above the offer', () => {
+    const exam = placed.find((item) => wordsOf(item).includes('QC REGULA'));
     const offer = placed.find((item) => wordsOf(item).includes('Lote Especial'));
 
     expect(exam).toBeDefined();
@@ -197,16 +197,25 @@ describe.each(['grid', 'story'] as const)('the %s format', (format) => {
 });
 
 describe('at the limits of its slots', () => {
-  it('reports an overflow when the offer outgrows the page, rather than drawing past it', () => {
-    const long = Array.from({ length: 40 }, (_, index) => `Item ${index + 1}: incluso`).join('\n');
-    const { reports } = render({ concurso: EXAM, versao: long });
+  it('reports an overflow when the supporting lines grow into the card', () => {
+    const support = Array.from({ length: 8 }, (_, index) => `Cargo de apoio ${index + 1}`);
+    const { reports } = render({ concurso: [EXAM, ...support].join('\n'), versao: OFFER });
 
     expect(reports.some((report) => report.code === 'W_TEMPLATE_OVERFLOW')).toBe(true);
+  });
+
+  it('shrinks a long band line to fit the card rather than wrapping it', () => {
+    const band = 'Desconto: Todos os pacotes com 40% OFF';
+    const { frame } = render({ concurso: EXAM, versao: `Oferta: Lote Especial\n${band}` });
+    const drawn = texts(frame).find((item) => wordsOf(item).includes('Todos os pacotes'));
+
+    expect(drawn).toBeDefined();
+    expect(layOut(drawn!.node)).toHaveLength(1);
   });
 
   it('draws an empty offer as no words, not as an error', () => {
     const { frame } = render({ concurso: EXAM, versao: '' });
 
-    expect(texts(frame).some((item) => wordsOf(item).includes('QC Regula'))).toBe(true);
+    expect(texts(frame).some((item) => wordsOf(item).includes('QC REGULA'))).toBe(true);
   });
 });

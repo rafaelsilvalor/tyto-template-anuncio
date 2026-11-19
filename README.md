@@ -9,9 +9,18 @@ template that lives, is tested and is released here, with no pull request in Tyt
 template from the brand kit installed on the machine, and without one it draws a placeholder
 (Tyto ADR 0063, ADR 0065). The example briefs are invented copy.
 
-**It is a first composition.** It places the brief's words in their boxes under the logo and
-reports when they outgrow the page. The head and offer layouts named below are declared and not
-drawn yet; they arrive with the kit pieces they consume (Tyto TYTO-797 to TYTO-801).
+**One layout is drawn so far: `vitrine` with `cartao`.** The photograph fills the top; a panel
+with rounded corners rises over it with the status line, the exam's name in capitals, the
+supporting lines and the salary, then the offer card (a title, a band in the accent, a foot),
+the proof of approvals and the logo. Its numbers are a reference art's layers. The other heads
+and offers named below are declared and draw this one until they arrive, with the kit pieces
+they consume (Tyto TYTO-797 to TYTO-801).
+
+In `::concurso`, lines with no label are, in order, the status line, the exam's name and
+supporting lines; `Vagas:` and `Banca:` share one supporting line; `Salário:` is the salary line
+and `Aprovação:` the proof under the card. In `::versao`, `Oferta:` is the card's title,
+`Desconto:` or `Destaque:` its band, and `Prazo:`, `Garantia:` or `Cupom:` its foot. `**…**` is
+bold wherever it is written.
 
 ## Install into Tyto
 
@@ -91,9 +100,9 @@ NODE_AUTH_TOKEN=$(gh auth token) pnpm install
 
 The tests, all without Tyto:
 
-- `src/template.test.ts`: the composition's rules on the scene — both formats drawn, the exam
-  above the offer, every text inside the page's margins, an overflow reported when the offer
-  outgrows the page.
+- `src/template.test.ts`: the composition's rules on the scene — both formats drawn, the exam's
+  name in capitals above the offer, every text inside the page's margins, a long band line
+  shrunk to one line, an overflow reported when the supporting lines grow into the card.
 - `tests/examples.test.ts`: every example brief compiled as Tyto compiles them, through
   `@tyto/template-kit/testing` (Tyto ADR 0152), against the HTML in `tests/__snapshots__/`.
   Nothing is measured and faces are placeholders, so the snapshot moves when the composition

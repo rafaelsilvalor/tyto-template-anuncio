@@ -1744,14 +1744,14 @@ function toDotPath(_path) {
   return segs.join("");
 }
 function prettifyError(error62) {
-  const lines = [];
+  const lines2 = [];
   const issues = [...error62.issues].sort((a, b) => (a.path ?? []).length - (b.path ?? []).length);
   for (const issue2 of issues) {
-    lines.push(`\u2716 ${issue2.message}`);
+    lines2.push(`\u2716 ${issue2.message}`);
     if (issue2.path?.length)
-      lines.push(`  \u2192 at ${toDotPath(issue2.path)}`);
+      lines2.push(`  \u2192 at ${toDotPath(issue2.path)}`);
   }
-  return lines.join("\n");
+  return lines2.join("\n");
 }
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/parse.js
@@ -2586,9 +2586,9 @@ var Doc = class {
       return;
     }
     const content = arg;
-    const lines = content.split("\n").filter((x) => x);
-    const minIndent = Math.min(...lines.map((x) => x.length - x.trimStart().length));
-    const dedented = lines.map((x) => x.slice(minIndent)).map((x) => " ".repeat(this.indent * 2) + x);
+    const lines2 = content.split("\n").filter((x) => x);
+    const minIndent = Math.min(...lines2.map((x) => x.length - x.trimStart().length));
+    const dedented = lines2.map((x) => x.slice(minIndent)).map((x) => " ".repeat(this.indent * 2) + x);
     for (const line of dedented) {
       this.content.push(line);
     }
@@ -3776,10 +3776,10 @@ var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
     }
     return void 0;
   });
-  const first = def.options.length === 1 ? def.options[0]._zod.run : null;
+  const first2 = def.options.length === 1 ? def.options[0]._zod.run : null;
   inst._zod.parse = (payload, ctx) => {
-    if (first) {
-      return first(payload, ctx);
+    if (first2) {
+      return first2(payload, ctx);
     }
     let async = false;
     const results = [];
@@ -3836,10 +3836,10 @@ function handleExclusiveUnionResults(results, final, inst, ctx) {
 var $ZodXor = /* @__PURE__ */ $constructor("$ZodXor", (inst, def) => {
   $ZodUnion.init(inst, def);
   def.inclusive = false;
-  const first = def.options.length === 1 ? def.options[0]._zod.run : null;
+  const first2 = def.options.length === 1 ? def.options[0]._zod.run : null;
   inst._zod.parse = (payload, ctx) => {
-    if (first) {
-      return first(payload, ctx);
+    if (first2) {
+      return first2(payload, ctx);
     }
     let async = false;
     const results = [];
@@ -16314,9 +16314,9 @@ var numberProcessor = (schema, ctx, _json, params) => {
       else
         handleUnrepresentable(schema, ctx, json2, params, `A multipleOf divisor of ${divisor} cannot be represented in JSON Schema`);
     }
-    const [first, ...rest] = divisors;
-    if (first !== void 0)
-      json2.multipleOf = first;
+    const [first2, ...rest] = divisors;
+    if (first2 !== void 0)
+      json2.multipleOf = first2;
     if (rest.length)
       json2.allOf = [...json2.allOf ?? [], ...rest.map((m) => ({ multipleOf: m }))];
   }
@@ -19020,14 +19020,14 @@ function checkArrayGuards(arraySchema, guards) {
         const key = canonicalKey(items[i], /* @__PURE__ */ new Set());
         if (key === null)
           continue;
-        const first = firstSeen.get(key);
-        if (first === void 0) {
+        const first2 = firstSeen.get(key);
+        if (first2 === void 0) {
           firstSeen.set(key, i);
           continue;
         }
         payload.issues.push({
           code: "custom",
-          message: `Array items must be unique: element at index ${i} duplicates the one at index ${first}`,
+          message: `Array items must be unique: element at index ${i} duplicates the one at index ${first2}`,
           input: items,
           path: [i],
           continue: true
@@ -22225,6 +22225,18 @@ function base(options) {
     ...options.mask !== void 0 ? { mask: options.mask } : {}
   };
 }
+function rect(options) {
+  const radius = options.radius ?? 0;
+  return {
+    ...base(options),
+    kind: "rect",
+    size: options.size,
+    radius: typeof radius === "number" ? [radius, radius, radius, radius] : [...radius],
+    ...options.id !== void 0 ? { id: options.id } : {},
+    ...options.fill !== void 0 ? { fill: options.fill } : {},
+    ...options.stroke !== void 0 ? { stroke: options.stroke } : {}
+  };
+}
 function text(options) {
   return {
     ...base(options),
@@ -22241,6 +22253,17 @@ function text(options) {
     // `clip` is the only overflow that needs no measurement, so it is what a template
     // that says nothing gets; `shrink` and `grow` are choices, and E4.5 acts on them.
     overflow: options.overflow ?? "clip",
+    ...options.id !== void 0 ? { id: options.id } : {}
+  };
+}
+function image(options) {
+  return {
+    ...base(options),
+    kind: "image",
+    asset: options.asset,
+    size: options.size,
+    fit: options.fit ?? "cover",
+    position: options.position ?? { x: 0.5, y: 0.5 },
     ...options.id !== void 0 ? { id: options.id } : {}
   };
 }
@@ -22404,10 +22427,86 @@ var KEEP_TOGETHER_RULES = [
     after: String.raw`(?:${UNITS.join("|")})(?!\p{L})`
   }
 ];
+var LONGEST_LABEL = 40;
 var LABEL_EXCEPTIONS = [
   { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
   { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
 ];
+function separatorAt(line, options) {
+  const separator = options.separator ?? ":";
+  if (separator === "") return void 0;
+  const covered = (options.notLabels ?? LABEL_EXCEPTIONS).flatMap(
+    (exception) => [...line.matchAll(new RegExp(exception.pattern, "gu"))].map((match) => ({
+      start: match.index,
+      end: match.index + match[0].length
+    }))
+  );
+  let at2 = line.indexOf(separator);
+  while (at2 >= 0 && covered.some((span) => span.start <= at2 && at2 < span.end)) {
+    at2 = line.indexOf(separator, at2 + 1);
+  }
+  if (at2 < 0) return void 0;
+  const label = line.slice(0, at2);
+  if (label.includes("\n") || label.trim() === "") return void 0;
+  if ([...label.trim()].length > (options.longestLabel ?? LONGEST_LABEL)) return void 0;
+  return at2;
+}
+function labelOf(line, options = {}) {
+  const at2 = separatorAt(flatten2(line), options);
+  if (at2 === void 0) return { label: void 0, text: line };
+  const end = at2 + (options.separator ?? ":").length;
+  return {
+    label: cut(line, 0, options.keepSeparator === false ? at2 : end),
+    text: cut(line, end, Infinity)
+  };
+}
+function cut(value, start, end) {
+  let offset = 0;
+  const within = (inlines) => inlines.flatMap((inline) => {
+    switch (inline.kind) {
+      case "text": {
+        const from = offset;
+        offset += inline.value.length;
+        const kept = inline.value.slice(Math.max(start - from, 0), Math.max(end - from, 0));
+        if (kept === "") return [];
+        const shift2 = Math.max(start - from, 0);
+        const rangeStart = Math.min(inline.range.start + shift2, inline.range.end);
+        return [
+          {
+            ...inline,
+            value: kept,
+            range: {
+              start: rangeStart,
+              end: Math.min(rangeStart + kept.length, inline.range.end)
+            }
+          }
+        ];
+      }
+      case "break": {
+        const from = offset;
+        offset += 1;
+        return start <= from && from < end ? [inline] : [];
+      }
+      default: {
+        const children = within(inline.children);
+        return children.length === 0 ? [] : [{ ...inline, children }];
+      }
+    }
+  });
+  return within(value);
+}
+function flatten2(value) {
+  return value.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return inline.value;
+      case "break":
+        return "\n";
+      default:
+        return flatten2(inline.children);
+    }
+  }).join("");
+}
 function mark(shape, height, fill, name) {
   const scale = height / shape.box.h;
   return block(
@@ -22427,8 +22526,8 @@ function reportOverflow(report, bottom, limit) {
   if (overflow > 0) report({ code: "W_TEMPLATE_OVERFLOW", overflow });
 }
 function atLeastOne(runs) {
-  const [first, ...rest] = runs;
-  return first === void 0 ? void 0 : [first, ...rest];
+  const [first2, ...rest] = runs;
+  return first2 === void 0 ? void 0 : [first2, ...rest];
 }
 function runsIn(value, style2) {
   return atLeastOne(
@@ -22455,6 +22554,38 @@ function grownTextBlock(value, width, minHeight, style2, measure, options = {}) 
   }
   const height = Math.max(minHeight, measured.height);
   return block(width, height, text({ ...options, runs, box: { w: width, h: height } }));
+}
+function naturalWidth(value, style2, measure) {
+  const runs = runsIn(value, style2);
+  if (runs === void 0) return 0;
+  const measured = measure(text({ runs, box: {} }));
+  return measured === void 0 ? void 0 : Math.ceil(measured.width);
+}
+function lines(text2) {
+  const result = [];
+  let current = [];
+  for (const inline of text2) {
+    if (inline.kind === "break") {
+      result.push(current);
+      current = [];
+      continue;
+    }
+    current.push(inline);
+  }
+  result.push(current);
+  return result.filter((line) => plain(line).trim() !== "");
+}
+function plain(text2) {
+  return text2.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return inline.value;
+      case "break":
+        return "\n";
+      default:
+        return plain(inline.children);
+    }
+  }).join("");
 }
 
 // node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
@@ -22545,57 +22676,276 @@ var TABLE_VALUE_DEFAULTS = {
 
 // src/template.ts
 var COLOR_DEFAULTS = {
-  accent: "#1f4fa3",
-  paper: "#ffffff",
-  ink: "#1a1a1a"
+  /** The exam's name, the card's outline and its band. */
+  accent: "#1363d0",
+  /** The panel under the words. */
+  paper: "#f7f4f4",
+  /** Every word on the panel. */
+  ink: "#4d4d4d",
+  /** The words on the band. */
+  "on-accent": "#eceaea"
 };
 var FACE2 = { family: "CircularXX", source: "system" };
-var REGULAR = 400;
-var BOLD3 = 700;
-var MARGIN = 80;
-var LOGO_TOP = 80;
-var LOGO_HEIGHT = 64;
-var HEAD_TOP = 220;
-var OFFER_GAP = 64;
-function limitOf(height) {
-  return height - MARGIN;
+var LIGHT = 300;
+var MEDIUM = 500;
+var BLACK = 900;
+var ASCENT = 0.75;
+var DESCENT = 0.25;
+var CAP_HEIGHT = 0.709;
+var LINE_HEIGHT = 1;
+function capOffset(size) {
+  return size * ((LINE_HEIGHT - (ASCENT + DESCENT)) / 2 + (ASCENT - CAP_HEIGHT));
 }
+var GRID = {
+  panelTop: 486,
+  panelRadius: 105,
+  kicker: { capTop: 523, size: 54.7 },
+  name: { capTop: 607, size: 69.6 },
+  support: { capTop: 711, size: 39 },
+  salary: { capTop: 766, size: 52 },
+  card: { x: 142, y: 872, w: 796, h: 266 },
+  band: { y: 948, h: 117 },
+  title: { capTop: 891, size: 50 },
+  bandText: { capTop: 983, size: 60.3 },
+  foot: { capTop: 1084, size: 33.6 },
+  proof: { capTop: 1171, size: 33.3 },
+  logo: { top: 1245, height: 62 }
+};
+var STORY = {
+  panelTop: 745,
+  panelRadius: 105,
+  kicker: { capTop: 834, size: 62.3 },
+  name: { capTop: 929, size: 79.4 },
+  support: { capTop: 1072, size: 39 },
+  salary: { capTop: 1142, size: 66.4 },
+  card: { x: 105, y: 1263, w: 870, h: 290 },
+  band: { y: 1347, h: 127 },
+  title: { capTop: 1283, size: 54.7 },
+  bandText: { capTop: 1384, size: 66 },
+  foot: { capTop: 1495, size: 36.8 },
+  proof: { capTop: 1590, size: 36.5 },
+  logo: { top: 1687, height: 71 }
+};
+function geometryOf(size) {
+  return size.h / size.w > 1.5 ? STORY : GRID;
+}
+var TEXT_MARGIN = 60;
+var CARD_PADDING = 48;
+var FIT_FLOOR = 0.7;
+var SUPPORT_GAP = 14;
+var NO_PHOTO = "#c9ccd2";
 var EMPTY = [];
 function wordsOf(context, name) {
   const value = context.slots[name]?.value;
   return value?.kind === "rich-text" ? value.text : EMPTY;
 }
+function keyOf(label) {
+  return plain(label).normalize("NFD").replace(/\p{M}/gu, "").replace(/:\s*$/u, "").trim().toLowerCase();
+}
+function fieldsOf(text2) {
+  const unlabelled = [];
+  const labelled = /* @__PURE__ */ new Map();
+  for (const line of lines(text2)) {
+    if (plain(line).trim() === "") continue;
+    const { label, text: value } = labelOf(line);
+    if (label === void 0) {
+      unlabelled.push(line);
+      continue;
+    }
+    const key = keyOf(label);
+    labelled.set(key, [...labelled.get(key) ?? [], value]);
+  }
+  return { unlabelled, labelled };
+}
+function first(fields, ...keys) {
+  for (const key of keys) {
+    const found = fields.labelled.get(key)?.[0];
+    if (found !== void 0) return found;
+  }
+  return void 0;
+}
+function joined(parts) {
+  return parts.flatMap((part, index) => {
+    if (index === 0) return [...part];
+    const at2 = part[0]?.range.start ?? 0;
+    return [{ kind: "break", range: { start: at2, end: at2 } }, ...part];
+  });
+}
+function upper(text2) {
+  return text2.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return { ...inline, value: inline.value.toLocaleUpperCase("pt-BR") };
+      case "bold":
+      case "italic":
+      case "mark":
+        return { ...inline, children: upper(inline.children) };
+      default:
+        return inline;
+    }
+  });
+}
 var build = (context) => {
   const ink = (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
-  const width = context.size.w - 2 * MARGIN;
-  const head = grownTextBlock(
-    wordsOf(context, "concurso"),
-    width,
-    0,
-    { font: FACE2, size: 44, weight: BOLD3, color: ink("ink") },
-    context.measure
-  );
-  const offerTop = HEAD_TOP + head.height + OFFER_GAP;
-  const offer = grownTextBlock(
-    wordsOf(context, "versao"),
-    width,
-    0,
-    { font: FACE2, size: 36, weight: REGULAR, color: ink("accent") },
-    context.measure
-  );
-  reportOverflow(context.report, offerTop + offer.height, limitOf(context.size.h));
+  const geometry = geometryOf(context.size);
+  const exam = fieldsOf(wordsOf(context, "concurso"));
+  const version2 = fieldsOf(wordsOf(context, "versao"));
+  const head = vitrine(context, ink, geometry, exam);
+  const offer = cartao(context, ink, geometry, version2);
+  const proof = first(exam, "aprovacao");
+  const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink("accent")));
+  reportOverflow(context.report, head.bottom, geometry.card.y - SUPPORT_GAP);
   return frame({
     format: context.format,
     size: context.size,
     idPrefix: context.idPrefix,
     background: solid(ink("paper")),
     children: [
-      at(MARGIN, LOGO_TOP, drawLogo(context.brand, LOGO_HEIGHT, oneInk(ink("accent")))),
-      at(MARGIN, HEAD_TOP, head),
-      at(MARGIN, offerTop, offer)
+      photo(context, geometry),
+      rect({
+        name: "painel",
+        size: { w: context.size.w, h: context.size.h - geometry.panelTop },
+        radius: [geometry.panelRadius, geometry.panelRadius, 0, 0],
+        fill: solid(ink("paper")),
+        transform: { y: geometry.panelTop }
+      }),
+      ...head.nodes,
+      ...offer,
+      ...proof === void 0 ? [] : [centred(context, "aprovacao", proof, geometry.proof, LIGHT, ink("ink"))],
+      at((context.size.w - logo.width) / 2, geometry.logo.top, logo)
     ]
   });
 };
+function photo(context, geometry) {
+  const size = { w: context.size.w, h: geometry.panelTop + geometry.panelRadius };
+  const value = context.slots["foto"]?.value;
+  if (value?.kind === "image") {
+    return image({ name: "foto", asset: value.asset, size, fit: "cover" });
+  }
+  return rect({ name: "foto", size, fill: solid(NO_PHOTO) });
+}
+function vitrine(context, ink, geometry, exam) {
+  const [kicker, name, ...support] = exam.unlabelled;
+  const facts = ["vagas", "banca"].flatMap(
+    (key) => (exam.labelled.get(key) ?? []).map((value) => labelledLine(key, value))
+  );
+  const supportText = joined([...support, ...facts.length === 0 ? [] : [sideBySide(facts)]]);
+  const salary = first(exam, "salario");
+  const nodes = [];
+  let bottom = 0;
+  const place = (slot, words, spot, weight, color2) => {
+    if (words === void 0 || plain(words).trim() === "") return spot.capTop;
+    const placed = centredBlock(context, slot, words, spot, weight, color2);
+    nodes.push(placed.node);
+    bottom = Math.max(bottom, placed.bottom);
+    return placed.bottom;
+  };
+  place("sobretitulo", kicker, geometry.kicker, MEDIUM, ink("ink"));
+  place(
+    "concurso",
+    name === void 0 ? void 0 : upper(name),
+    geometry.name,
+    BLACK,
+    ink("accent")
+  );
+  const supportBottom = place("apoio", supportText, geometry.support, LIGHT, ink("ink"));
+  const salaryTop = Math.max(geometry.salary.capTop, supportBottom + SUPPORT_GAP);
+  place("salario", salary, { ...geometry.salary, capTop: salaryTop }, MEDIUM, ink("ink"));
+  return { nodes, bottom };
+}
+function sideBySide(facts) {
+  return facts.flatMap((fact, index) => {
+    if (index === 0) return [...fact];
+    const at2 = fact[0]?.range.start ?? 0;
+    return [{ kind: "text", value: " \xB7 ", range: { start: at2, end: at2 } }, ...fact];
+  });
+}
+function labelledLine(key, value) {
+  const label = key === "vagas" ? "Vagas" : "Banca";
+  const start = value[0]?.range.start ?? 0;
+  return [{ kind: "text", value: `${label}: `, range: { start, end: start } }, ...value];
+}
+function cartao(context, ink, geometry, version2) {
+  const { card, band } = geometry;
+  const inner = card.w - 2 * CARD_PADDING;
+  const nodes = [
+    rect({
+      name: "cartao",
+      size: { w: card.w, h: card.h },
+      radius: 39,
+      stroke: { paint: solid(ink("accent")), width: 2, align: "inside" },
+      transform: { x: card.x, y: card.y }
+    }),
+    rect({
+      name: "faixa",
+      size: { w: card.w, h: band.h },
+      fill: solid(ink("accent")),
+      effects: [
+        { kind: "shadow", x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } }
+      ],
+      transform: { x: card.x, y: band.y }
+    })
+  ];
+  const title = first(version2, "oferta");
+  if (title !== void 0) {
+    nodes.push(fitted(context, "oferta", title, geometry.title, LIGHT, ink("ink"), card, inner));
+  }
+  const bandWords = first(version2, "desconto", "destaque");
+  if (bandWords !== void 0) {
+    nodes.push(
+      fitted(
+        context,
+        "desconto",
+        bandWords,
+        geometry.bandText,
+        BLACK,
+        ink("on-accent"),
+        card,
+        inner
+      )
+    );
+  }
+  const foot = first(version2, "prazo", "garantia", "cupom");
+  if (foot !== void 0) {
+    nodes.push(fitted(context, "rodape", foot, geometry.foot, LIGHT, ink("ink"), card, inner));
+  }
+  return nodes;
+}
+function styleOf(size, weight, color2) {
+  return { font: FACE2, size, weight, color: color2 };
+}
+function centredBlock(context, name, words, spot, weight, color2) {
+  const width = context.size.w - 2 * TEXT_MARGIN;
+  const block2 = grownTextBlock(
+    words,
+    width,
+    0,
+    styleOf(spot.size, weight, color2),
+    context.measure,
+    { name, align: "center", lineHeight: LINE_HEIGHT, overflow: "grow" }
+  );
+  const top = spot.capTop - capOffset(spot.size);
+  return { node: at(TEXT_MARGIN, top, block2), bottom: top + block2.height };
+}
+function centred(context, name, words, spot, weight, color2) {
+  return centredBlock(context, name, words, spot, weight, color2).node;
+}
+function fitted(context, name, words, spot, weight, color2, card, inner) {
+  const size = fitSize(words, spot.size, weight, color2, inner, context.measure);
+  const block2 = grownTextBlock(words, inner, 0, styleOf(size, weight, color2), context.measure, {
+    name,
+    align: "center",
+    lineHeight: LINE_HEIGHT,
+    overflow: "grow"
+  });
+  const capTop = spot.capTop + CAP_HEIGHT * (spot.size - size) / 2;
+  return at(card.x + CARD_PADDING, capTop - capOffset(size), block2);
+}
+function fitSize(words, size, weight, color2, width, measure) {
+  const natural = naturalWidth(words, styleOf(size, weight, color2), measure);
+  if (natural === void 0 || natural <= width) return size;
+  return Math.max(size * FIT_FLOOR, size * width / natural);
+}
 
 // src/index.ts
 var BUILDS = { anuncio: build };
