@@ -1,0 +1,23 @@
+---
+template: anuncio
+formats: [grid, story]
+---
+// The offer version and the timeless one of an invented exam.
+
+::concurso
+  Edital publicado
+  Concurso QC Regula
+  Analista Técnico
+  Vagas: 40
+  Salário: até **R$ 9,2 mil**
+  Banca: Ômegas
+  Aprovação: Estude como **7 a cada 10** aprovados!
+
+::versao
+  Oferta: Lote Especial
+  Desconto: Pacotes com **40% OFF**
+  Prazo: Por tempo limitado!
+
+::versao
+  Oferta: Pacote Completo focado no edital e na banca Ômegas
+  Garantia: 7 dias de garantia

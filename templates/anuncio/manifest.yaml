@@ -1,0 +1,36 @@
+name: anuncio
+version: 0.1.0
+description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
+# Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
+# manifest's `font:CircularXX`, approved at install.
+faces:
+  - { family: CircularXX, weight: 400 }
+  - { family: CircularXX, weight: 700 }
+fonts:
+  CircularXX: { alternatives: [Inter, Manrope, DM Sans] }
+formats: [grid, story]
+slots:
+  # The head's layout. Each named variant is a configuration that defaults it; the brief may
+  # still write it in the frontmatter. Not drawn yet: the first composition has one head.
+  cabeca: { type: enum, values: [vitrine, faixa, lateral, manchete, noturna], default: vitrine }
+  # The offer's layout, the same way. Not drawn yet.
+  oferta: { type: enum, values: [cartao, dupla, lista, chamada, impacto], default: cartao }
+  # The exam, written once for every artwork: a status line, the exam's name, the post, then
+  # `Label: value` lines (`Vagas:`, `Salário:`, `Banca:`, `Aprovação:`).
+  concurso: { type: rich-text, required: true, max: 600 }
+  # One artwork per version: the offer version and the timeless one are two `::versao`. Its
+  # lines are `Label: value` (`Oferta:`, `Desconto:`, `Prazo:`, `Garantia:`, `Bonus:`,
+  # `Depoimento:`). `max` counts versions.
+  versao: { type: rich-text, repeat: true, min: 1, max: 4 }
+  # The head's photograph, full bleed: a building, a stock image or a generated one.
+  foto: { type: image }
+  # A teacher cut out with no background, drawn over the photograph. Not drawn yet.
+  recorte: { type: image }
+# What a configuration may change (Tyto ADR 0153). Placeholders until the art is built against
+# the reference PSDs; `tests/values.test.ts` pins them equal to the ones the code falls back to.
+values:
+  # The logo and the offer's words.
+  accent: { type: color, default: '#1f4fa3' }
+  paper: { type: color, default: '#ffffff' }
+  # The exam's words.
+  ink: { type: color, default: '#1a1a1a' }
