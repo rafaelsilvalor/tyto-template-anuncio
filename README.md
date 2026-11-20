@@ -12,7 +12,11 @@ template from the brand kit installed on the machine, and without one it draws a
 **One layout is drawn so far: `vitrine` with `cartao`.** The photograph fills the top; a panel
 with rounded corners rises over it with the status line, the exam's name in capitals, the
 supporting lines and the salary, then the offer card (a title, a band in the accent, a foot),
-the proof of approvals and the logo. Its numbers are a reference art's layers. The other heads
+the proof of approvals and the logo. Its numbers are a reference art's layers, and they are
+the least each piece gets: a line that wraps pushes the lines under it down, a card title that
+wraps grows the card upward, a proof that wraps lifts the card, and the panel rises over the
+photograph to make the room. Only the logo never moves; past half the panel's height the head
+is reported as an overflow. The other heads
 and offers named below are declared and draw this one until they arrive, with the kit pieces
 they consume (Tyto TYTO-797 to TYTO-801).
 
@@ -102,7 +106,9 @@ The tests, all without Tyto:
 
 - `src/template.test.ts`: the composition's rules on the scene — both formats drawn, the exam's
   name in capitals above the offer, every text inside the page's margins, a long band line
-  shrunk to one line, an overflow reported when the supporting lines grow into the card.
+  shrunk to one line, a wrapped head line pushing the next one down, a wrapped card title
+  growing the card upward, the panel rising for a long name, and an overflow reported when the
+  supporting lines grow into the card.
 - `tests/examples.test.ts`: every example brief compiled as Tyto compiles them, through
   `@tyto/template-kit/testing` (Tyto ADR 0152), against the HTML in `tests/__snapshots__/`.
   Nothing is measured and faces are placeholders, so the snapshot moves when the composition

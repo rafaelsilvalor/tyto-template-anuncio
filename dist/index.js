@@ -22732,7 +22732,10 @@ function geometryOf(size) {
 var TEXT_MARGIN = 60;
 var CARD_PADDING = 48;
 var FIT_FLOOR = 0.7;
-var SUPPORT_GAP = 14;
+var LINE_GAP = 14;
+var HEAD_GAP = 56;
+var PROOF_GAP = 42;
+var PANEL_RISE_FLOOR = 0.5;
 var NO_PHOTO = "#c9ccd2";
 var EMPTY = [];
 function wordsOf(context, name) {
@@ -22790,11 +22793,17 @@ var build = (context) => {
   const geometry = geometryOf(context.size);
   const exam = fieldsOf(wordsOf(context, "concurso"));
   const version2 = fieldsOf(wordsOf(context, "versao"));
-  const head = vitrine(context, ink, geometry, exam);
+  const proofWords = first(exam, "aprovacao");
+  const proof = proofWords === void 0 ? void 0 : centredBlock(context, "aprovacao", proofWords, geometry.proof, LIGHT, ink("ink"));
+  const proofLift = Math.max(0, (proof?.bottom ?? 0) + PROOF_GAP - geometry.logo.top);
   const offer = cartao(context, ink, geometry, version2);
-  const proof = first(exam, "aprovacao");
+  const cardTop = geometry.card.y - offer.growth - proofLift;
+  const head = vitrine(context, ink, geometry, exam);
+  const wanted = Math.max(0, head.bottom + HEAD_GAP - cardTop);
+  const headLift = Math.min(wanted, geometry.panelTop * (1 - PANEL_RISE_FLOOR));
+  reportOverflow(context.report, head.bottom - headLift + HEAD_GAP, cardTop);
   const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink("accent")));
-  reportOverflow(context.report, head.bottom, geometry.card.y - SUPPORT_GAP);
+  const panelTop = geometry.panelTop - headLift;
   return frame({
     format: context.format,
     size: context.size,
@@ -22804,18 +22813,21 @@ var build = (context) => {
       photo(context, geometry),
       rect({
         name: "painel",
-        size: { w: context.size.w, h: context.size.h - geometry.panelTop },
+        size: { w: context.size.w, h: context.size.h - panelTop },
         radius: [geometry.panelRadius, geometry.panelRadius, 0, 0],
         fill: solid(ink("paper")),
-        transform: { y: geometry.panelTop }
+        transform: { y: panelTop }
       }),
-      ...head.nodes,
-      ...offer,
-      ...proof === void 0 ? [] : [centred(context, "aprovacao", proof, geometry.proof, LIGHT, ink("ink"))],
+      lifted("cabeca", head.nodes, headLift),
+      lifted("oferta", offer.nodes, proofLift),
+      ...proof === void 0 ? [] : [lifted("prova", [proof.node], proofLift)],
       at((context.size.w - logo.width) / 2, geometry.logo.top, logo)
     ]
   });
 };
+function lifted(name, nodes, lift) {
+  return group({ name, children: nodes, transform: { y: -lift } });
+}
 function photo(context, geometry) {
   const size = { w: context.size.w, h: geometry.panelTop + geometry.panelRadius };
   const value = context.slots["foto"]?.value;
@@ -22834,11 +22846,11 @@ function vitrine(context, ink, geometry, exam) {
   const nodes = [];
   let bottom = 0;
   const place = (slot, words, spot, weight, color2) => {
-    if (words === void 0 || plain(words).trim() === "") return spot.capTop;
-    const placed = centredBlock(context, slot, words, spot, weight, color2);
+    if (words === void 0 || plain(words).trim() === "") return;
+    const capTop = bottom === 0 ? spot.capTop : Math.max(spot.capTop, bottom + LINE_GAP);
+    const placed = centredBlock(context, slot, words, { ...spot, capTop }, weight, color2);
     nodes.push(placed.node);
-    bottom = Math.max(bottom, placed.bottom);
-    return placed.bottom;
+    bottom = placed.bottom;
   };
   place("sobretitulo", kicker, geometry.kicker, MEDIUM, ink("ink"));
   place(
@@ -22848,9 +22860,8 @@ function vitrine(context, ink, geometry, exam) {
     BLACK,
     ink("accent")
   );
-  const supportBottom = place("apoio", supportText, geometry.support, LIGHT, ink("ink"));
-  const salaryTop = Math.max(geometry.salary.capTop, supportBottom + SUPPORT_GAP);
-  place("salario", salary, { ...geometry.salary, capTop: salaryTop }, MEDIUM, ink("ink"));
+  place("apoio", supportText, geometry.support, LIGHT, ink("ink"));
+  place("salario", salary, geometry.salary, MEDIUM, ink("ink"));
   return { nodes, bottom };
 }
 function sideBySide(facts) {
@@ -22868,13 +22879,49 @@ function labelledLine(key, value) {
 function cartao(context, ink, geometry, version2) {
   const { card, band } = geometry;
   const inner = card.w - 2 * CARD_PADDING;
+  const words = [];
+  let growth = 0;
+  const title = first(version2, "oferta");
+  if (title !== void 0) {
+    const placed = fitted(
+      context,
+      "oferta",
+      title,
+      geometry.title,
+      LIGHT,
+      ink("ink"),
+      card,
+      inner,
+      true
+    );
+    growth = placed.extra;
+    words.push(placed.node);
+  }
+  const bandWords = first(version2, "desconto", "destaque");
+  if (bandWords !== void 0) {
+    const placed = fitted(
+      context,
+      "desconto",
+      bandWords,
+      geometry.bandText,
+      BLACK,
+      ink("on-accent"),
+      card,
+      inner
+    );
+    words.push(placed.node);
+  }
+  const foot = first(version2, "prazo", "garantia", "cupom");
+  if (foot !== void 0) {
+    words.push(fitted(context, "rodape", foot, geometry.foot, LIGHT, ink("ink"), card, inner).node);
+  }
   const nodes = [
     rect({
       name: "cartao",
-      size: { w: card.w, h: card.h },
+      size: { w: card.w, h: card.h + growth },
       radius: 39,
       stroke: { paint: solid(ink("accent")), width: 2, align: "inside" },
-      transform: { x: card.x, y: card.y }
+      transform: { x: card.x, y: card.y - growth }
     }),
     rect({
       name: "faixa",
@@ -22884,32 +22931,10 @@ function cartao(context, ink, geometry, version2) {
         { kind: "shadow", x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } }
       ],
       transform: { x: card.x, y: band.y }
-    })
+    }),
+    ...words
   ];
-  const title = first(version2, "oferta");
-  if (title !== void 0) {
-    nodes.push(fitted(context, "oferta", title, geometry.title, LIGHT, ink("ink"), card, inner));
-  }
-  const bandWords = first(version2, "desconto", "destaque");
-  if (bandWords !== void 0) {
-    nodes.push(
-      fitted(
-        context,
-        "desconto",
-        bandWords,
-        geometry.bandText,
-        BLACK,
-        ink("on-accent"),
-        card,
-        inner
-      )
-    );
-  }
-  const foot = first(version2, "prazo", "garantia", "cupom");
-  if (foot !== void 0) {
-    nodes.push(fitted(context, "rodape", foot, geometry.foot, LIGHT, ink("ink"), card, inner));
-  }
-  return nodes;
+  return { nodes, growth };
 }
 function styleOf(size, weight, color2) {
   return { font: FACE2, size, weight, color: color2 };
@@ -22927,10 +22952,7 @@ function centredBlock(context, name, words, spot, weight, color2) {
   const top = spot.capTop - capOffset(spot.size);
   return { node: at(TEXT_MARGIN, top, block2), bottom: top + block2.height };
 }
-function centred(context, name, words, spot, weight, color2) {
-  return centredBlock(context, name, words, spot, weight, color2).node;
-}
-function fitted(context, name, words, spot, weight, color2, card, inner) {
+function fitted(context, name, words, spot, weight, color2, card, inner, growUp = false) {
   const size = fitSize(words, spot.size, weight, color2, inner, context.measure);
   const block2 = grownTextBlock(words, inner, 0, styleOf(size, weight, color2), context.measure, {
     name,
@@ -22939,7 +22961,9 @@ function fitted(context, name, words, spot, weight, color2, card, inner) {
     overflow: "grow"
   });
   const capTop = spot.capTop + CAP_HEIGHT * (spot.size - size) / 2;
-  return at(card.x + CARD_PADDING, capTop - capOffset(size), block2);
+  const extra = Math.max(0, block2.height - size * LINE_HEIGHT);
+  const top = capTop - capOffset(size) - (growUp ? extra : 0);
+  return { node: at(card.x + CARD_PADDING, top, block2), extra };
 }
 function fitSize(words, size, weight, color2, width, measure) {
   const natural = naturalWidth(words, styleOf(size, weight, color2), measure);

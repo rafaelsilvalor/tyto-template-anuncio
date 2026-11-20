@@ -158,6 +158,25 @@ function texts(frame: Frame): PlacedText[] {
   return result;
 }
 
+/** Where a placed text ends, by the stand-in measure. */
+const bottomOf = (placed: PlacedText): number =>
+  placed.y + layOut(placed.node).length * placed.node.lineHeight * sizeOf(placed.node);
+
+/** A rectangle by name, with its position in the frame. */
+function rectNamed(frame: Frame, name: string): { readonly y: number } {
+  let found: { y: number } | undefined;
+  const walk = (nodes: readonly SceneNode[], y: number) => {
+    for (const node of nodes) {
+      const ny = y + node.transform.y;
+      if (node.kind === 'rect' && node.name === name) found = { y: ny };
+      if (node.kind === 'group') walk(node.children, ny);
+    }
+  };
+  walk(frame.children, 0);
+  if (found === undefined) throw new Error(`no rect named ${name}`);
+  return found;
+}
+
 const wordsOf = (placed: PlacedText): string =>
   placed.node.runs.map((r) => (r.kind === 'text' ? r.text : '\n')).join('');
 
@@ -211,6 +230,46 @@ describe('at the limits of its slots', () => {
 
     expect(drawn).toBeDefined();
     expect(layOut(drawn!.node)).toHaveLength(1);
+  });
+
+  it('pushes every head line below one that wrapped, so no two overlap', () => {
+    const kicker = 'Edital publicado com vagas na área ambiental e cadastro de reserva';
+    const { frame } = render({ concurso: EXAM.replace('Edital publicado', kicker), versao: OFFER });
+    const head = ['Edital publicado com', 'QC REGULA', 'Analista', 'R$ 9,2 mil'].map((words) =>
+      texts(frame).find((item) => wordsOf(item).includes(words)),
+    );
+
+    expect(layOut(head[0]!.node).length).toBeGreaterThan(1);
+    for (let index = 1; index < head.length; index++) {
+      expect(head[index]!.y).toBeGreaterThanOrEqual(bottomOf(head[index - 1]!));
+    }
+  });
+
+  it('grows the card upward when its title wraps, keeping the band in its place', () => {
+    const title = `Oferta: ${'Pacote completo com teoria, questões e fórum '.repeat(3)}`;
+    const plainCard = rectNamed(render({ concurso: EXAM, versao: OFFER }).frame, 'cartao');
+    const plainBand = rectNamed(render({ concurso: EXAM, versao: OFFER }).frame, 'faixa');
+    const { frame, reports } = render({
+      concurso: EXAM,
+      versao: `${title}\nDesconto: Pacotes com 40% OFF`,
+    });
+    const card = rectNamed(frame, 'cartao');
+    const drawn = texts(frame).find((item) => wordsOf(item).includes('Pacote completo'))!;
+    const band = rectNamed(frame, 'faixa');
+
+    expect(card.y).toBeLessThan(plainCard.y);
+    expect(band.y).toBe(plainBand.y);
+    expect(drawn.y).toBeGreaterThanOrEqual(card.y);
+    expect(bottomOf(drawn)).toBeLessThanOrEqual(band.y);
+    expect(reports.filter((report) => report.code === 'W_TEMPLATE_OVERFLOW')).toEqual([]);
+  });
+
+  it('raises the panel over the photograph to make room for the head', () => {
+    const name = 'Concurso Prefeitura Municipal de Lagoa Santa do Norte Mineiro';
+    const plain = rectNamed(render({ concurso: EXAM, versao: OFFER }).frame, 'painel');
+    const { frame } = render({ concurso: EXAM.replace('Concurso QC Regula', name), versao: OFFER });
+
+    expect(rectNamed(frame, 'painel').y).toBeLessThan(plain.y);
   });
 
   it('draws an empty offer as no words, not as an error', () => {

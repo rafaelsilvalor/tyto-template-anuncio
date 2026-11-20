@@ -26,7 +26,7 @@
  * declared value (Tyto ADR 0153).
  */
 
-import { colorValue, frame, image, rect, solid } from '@tyto/core/template';
+import { colorValue, frame, group, image, rect, solid } from '@tyto/core/template';
 import { drawLogo, oneInk } from '@tyto/house-style';
 import {
   at,
@@ -151,8 +151,17 @@ export const TEXT_MARGIN = 60;
 const CARD_PADDING = 48;
 /** The smallest a card's line shrinks to before it wraps instead. */
 const FIT_FLOOR = 0.7;
-/** The least room between the supporting lines and the salary under them. */
-const SUPPORT_GAP = 14;
+/**
+ * The least room between one line of the head and the top of the capitals under it. The
+ * reference leaves 17 to 67 px; a line that wrapped pushes the next one down to this.
+ */
+const LINE_GAP = 14;
+/** The least room between the head's last line and the card, the reference's (56 to 57 px). */
+const HEAD_GAP = 56;
+/** The least room between the proof and the logo, the reference's feed post (42 px). */
+const PROOF_GAP = 42;
+/** The panel never rises above this share of its reference top; past it the head overflows. */
+const PANEL_RISE_FLOOR = 0.5;
 /** The photograph's stand-in when the brief names none. */
 const NO_PHOTO = '#c9ccd2';
 
@@ -242,13 +251,27 @@ export const build: TemplateBuild = (context: TemplateContext) => {
   const exam = fieldsOf(wordsOf(context, 'concurso'));
   const version = fieldsOf(wordsOf(context, 'versao'));
 
-  const head = vitrine(context, ink, geometry, exam);
+  // Laid out from the bottom up, because the logo is the one thing that never moves: the proof
+  // sits above the logo, the card above the proof, and the head above the card. Each starts at
+  // the reference's place and rises only as far as the words under it grew.
+  const proofWords = first(exam, 'aprovacao');
+  const proof =
+    proofWords === undefined
+      ? undefined
+      : centredBlock(context, 'aprovacao', proofWords, geometry.proof, LIGHT, ink('ink'));
+  const proofLift = Math.max(0, (proof?.bottom ?? 0) + PROOF_GAP - geometry.logo.top);
+
   const offer = cartao(context, ink, geometry, version);
-  const proof = first(exam, 'aprovacao');
+  const cardTop = geometry.card.y - offer.growth - proofLift;
+
+  const head = vitrine(context, ink, geometry, exam);
+  const wanted = Math.max(0, head.bottom + HEAD_GAP - cardTop);
+  // The panel rises over the photograph to make room, down to a floor that keeps the photograph.
+  const headLift = Math.min(wanted, geometry.panelTop * (1 - PANEL_RISE_FLOOR));
+  reportOverflow(context.report, head.bottom - headLift + HEAD_GAP, cardTop);
 
   const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink('accent')));
-  // The head grows down with its supporting lines; past the card it would be drawn under it.
-  reportOverflow(context.report, head.bottom, geometry.card.y - SUPPORT_GAP);
+  const panelTop = geometry.panelTop - headLift;
 
   return frame({
     format: context.format,
@@ -259,20 +282,23 @@ export const build: TemplateBuild = (context: TemplateContext) => {
       photo(context, geometry),
       rect({
         name: 'painel',
-        size: { w: context.size.w, h: context.size.h - geometry.panelTop },
+        size: { w: context.size.w, h: context.size.h - panelTop },
         radius: [geometry.panelRadius, geometry.panelRadius, 0, 0],
         fill: solid(ink('paper')),
-        transform: { y: geometry.panelTop },
+        transform: { y: panelTop },
       }),
-      ...head.nodes,
-      ...offer,
-      ...(proof === undefined
-        ? []
-        : [centred(context, 'aprovacao', proof, geometry.proof, LIGHT, ink('ink'))]),
+      lifted('cabeca', head.nodes, headLift),
+      lifted('oferta', offer.nodes, proofLift),
+      ...(proof === undefined ? [] : [lifted('prova', [proof.node], proofLift)]),
       at((context.size.w - logo.width) / 2, geometry.logo.top, logo),
     ],
   });
 };
+
+/** Nodes drawn `lift` pixels higher than they were placed. */
+function lifted(name: string, nodes: readonly NodeDraft[], lift: number): NodeDraft {
+  return group({ name, children: nodes, transform: { y: -lift } });
+}
 
 /** The head's photograph, filling the frame's width down to below the panel's corners. */
 function photo(context: TemplateContext, geometry: Geometry): NodeDraft {
@@ -309,18 +335,19 @@ function vitrine(context: TemplateContext, ink: Ink, geometry: Geometry, exam: F
 
   const nodes: NodeDraft[] = [];
   let bottom = 0;
+  // Each line keeps the reference's place unless the one above wrapped down to it.
   const place = (
     slot: string,
     words: RichText | undefined,
     spot: Spot,
     weight: number,
     color: string,
-  ): number => {
-    if (words === undefined || plain(words).trim() === '') return spot.capTop;
-    const placed = centredBlock(context, slot, words, spot, weight, color);
+  ): void => {
+    if (words === undefined || plain(words).trim() === '') return;
+    const capTop = bottom === 0 ? spot.capTop : Math.max(spot.capTop, bottom + LINE_GAP);
+    const placed = centredBlock(context, slot, words, { ...spot, capTop }, weight, color);
     nodes.push(placed.node);
-    bottom = Math.max(bottom, placed.bottom);
-    return placed.bottom;
+    bottom = placed.bottom;
   };
 
   place('sobretitulo', kicker, geometry.kicker, MEDIUM, ink('ink'));
@@ -331,10 +358,8 @@ function vitrine(context: TemplateContext, ink: Ink, geometry: Geometry, exam: F
     BLACK,
     ink('accent'),
   );
-  const supportBottom = place('apoio', supportText, geometry.support, LIGHT, ink('ink'));
-  // The salary keeps the reference's place unless the supporting lines wrapped down to it.
-  const salaryTop = Math.max(geometry.salary.capTop, supportBottom + SUPPORT_GAP);
-  place('salario', salary, { ...geometry.salary, capTop: salaryTop }, MEDIUM, ink('ink'));
+  place('apoio', supportText, geometry.support, LIGHT, ink('ink'));
+  place('salario', salary, geometry.salary, MEDIUM, ink('ink'));
 
   return { nodes, bottom };
 }
@@ -362,21 +387,56 @@ function labelledLine(key: string, value: RichText): RichText {
  * accent, `Prazo:`, `Garantia:` or `Cupom:` its foot. A line the card does not hold is not
  * drawn. The title and the band's words shrink to one line before they wrap.
  */
-function cartao(
-  context: TemplateContext,
-  ink: Ink,
-  geometry: Geometry,
-  version: Fields,
-): NodeDraft[] {
+function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, version: Fields): Offer {
   const { card, band } = geometry;
   const inner = card.w - 2 * CARD_PADDING;
+  const words: NodeDraft[] = [];
+
+  // A title that wraps even at the floor grows the card upward: its last line keeps the
+  // reference's place above the band, and the lines before it take room from the head.
+  let growth = 0;
+  const title = first(version, 'oferta');
+  if (title !== undefined) {
+    const placed = fitted(
+      context,
+      'oferta',
+      title,
+      geometry.title,
+      LIGHT,
+      ink('ink'),
+      card,
+      inner,
+      true,
+    );
+    growth = placed.extra;
+    words.push(placed.node);
+  }
+  const bandWords = first(version, 'desconto', 'destaque');
+  if (bandWords !== undefined) {
+    const placed = fitted(
+      context,
+      'desconto',
+      bandWords,
+      geometry.bandText,
+      BLACK,
+      ink('on-accent'),
+      card,
+      inner,
+    );
+    words.push(placed.node);
+  }
+  const foot = first(version, 'prazo', 'garantia', 'cupom');
+  if (foot !== undefined) {
+    words.push(fitted(context, 'rodape', foot, geometry.foot, LIGHT, ink('ink'), card, inner).node);
+  }
+
   const nodes: NodeDraft[] = [
     rect({
       name: 'cartao',
-      size: { w: card.w, h: card.h },
+      size: { w: card.w, h: card.h + growth },
       radius: 39,
       stroke: { paint: solid(ink('accent')), width: 2, align: 'inside' },
-      transform: { x: card.x, y: card.y },
+      transform: { x: card.x, y: card.y - growth },
     }),
     rect({
       name: 'faixa',
@@ -387,32 +447,15 @@ function cartao(
       ],
       transform: { x: card.x, y: band.y },
     }),
+    ...words,
   ];
+  return { nodes, growth };
+}
 
-  const title = first(version, 'oferta');
-  if (title !== undefined) {
-    nodes.push(fitted(context, 'oferta', title, geometry.title, LIGHT, ink('ink'), card, inner));
-  }
-  const bandWords = first(version, 'desconto', 'destaque');
-  if (bandWords !== undefined) {
-    nodes.push(
-      fitted(
-        context,
-        'desconto',
-        bandWords,
-        geometry.bandText,
-        BLACK,
-        ink('on-accent'),
-        card,
-        inner,
-      ),
-    );
-  }
-  const foot = first(version, 'prazo', 'garantia', 'cupom');
-  if (foot !== undefined) {
-    nodes.push(fitted(context, 'rodape', foot, geometry.foot, LIGHT, ink('ink'), card, inner));
-  }
-  return nodes;
+interface Offer {
+  readonly nodes: NodeDraft[];
+  /** How much taller than the reference's card the title made it, all of it above. */
+  readonly growth: number;
 }
 
 /* ------------------------------------------------------------------ placing words -- */
@@ -443,18 +486,10 @@ function centredBlock(
   return { node: at(TEXT_MARGIN, top, block), bottom: top + block.height };
 }
 
-function centred(
-  context: TemplateContext,
-  name: string,
-  words: RichText,
-  spot: Spot,
-  weight: number,
-  color: string,
-): NodeDraft {
-  return centredBlock(context, name, words, spot, weight, color).node;
-}
-
-/** Words centred in the card, shrunk to one line when they are wider than its inside. */
+/**
+ * Words centred in the card, shrunk to one line when they are wider than its inside, and
+ * wrapped past the floor. `extra` is how much taller than one line they came out.
+ */
 function fitted(
   context: TemplateContext,
   name: string,
@@ -464,7 +499,8 @@ function fitted(
   color: string,
   card: Geometry['card'],
   inner: number,
-): NodeDraft {
+  growUp = false,
+): { node: NodeDraft; extra: number } {
   const size = fitSize(words, spot.size, weight, color, inner, context.measure);
   const block = grownTextBlock(words, inner, 0, styleOf(size, weight, color), context.measure, {
     name,
@@ -474,7 +510,10 @@ function fitted(
   });
   // A shrunk line keeps the centre of the reference's line, not its top.
   const capTop = spot.capTop + (CAP_HEIGHT * (spot.size - size)) / 2;
-  return at(card.x + CARD_PADDING, capTop - capOffset(size), block);
+  const extra = Math.max(0, block.height - size * LINE_HEIGHT);
+  // Growing up, the last line takes the reference's place and the lines before it rise.
+  const top = capTop - capOffset(size) - (growUp ? extra : 0);
+  return { node: at(card.x + CARD_PADDING, top, block), extra };
 }
 
 /** The size at which the words fit one line of `width`, never below the floor. */
