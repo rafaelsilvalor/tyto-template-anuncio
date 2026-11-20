@@ -35,7 +35,10 @@ import { colorValue, frame, group, image, rect, solid } from '@tyto/core/templat
 import { drawLogo, oneInk } from '@tyto/house-style';
 import {
   at,
+  bandBottom,
   block,
+  card as drawCard,
+  cardSegments,
   grownTextBlock,
   levelStack,
   levelsOf,
@@ -49,6 +52,7 @@ import type { Inline, RichText, TemplateBuild, TemplateContext } from '@tyto/cor
 import type { NodeDraft } from '@tyto/core/template';
 import type {
   Block,
+  CardRole,
   LevelItem,
   LevelLook,
   LevelPart,
@@ -398,79 +402,67 @@ interface Offer {
  */
 function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, apelo: RichText): Offer {
   const { card, band } = geometry;
-  const parts = levelsOf(apelo).flatMap((item) => (item.kind === 'line' ? item.parts : []));
-  const main = parts.findIndex((part) => part.position === 'main');
-  if (main < 0) return { nodes: [], top: card.y };
-
   const inner = card.w - 2 * CARD_PADDING;
-  const titleWords = joined(parts.slice(0, main).map((part) => part.words));
-  const footWords = joined(parts.slice(main + 1).map((part) => part.words));
-  const hasTitle = plain(titleWords).trim() !== '';
-  const hasFoot = plain(footWords).trim() !== '';
+  // Each segment's words are placed where the reference has them, in a block whose top is the
+  // segment's reference top less what grew upward; the kit's card stacks them.
+  const segmentOf = (role: CardRole, parts: readonly LevelPart[]): Block => {
+    const words = joined(parts.map((part) => part.words));
+    if (role === 'band') {
+      const placed = fitted(
+        context,
+        'faixa-texto',
+        words,
+        geometry.bandText,
+        BLACK,
+        ink('on-accent'),
+        card,
+        inner,
+        true,
+      );
+      return segmentBlock(placed.node, card, band.y - placed.extra, band.h + placed.extra);
+    }
+    if (role === 'title') {
+      const placed = fitted(
+        context,
+        'oferta',
+        words,
+        geometry.title,
+        LIGHT,
+        ink('ink'),
+        card,
+        inner,
+        true,
+      );
+      return segmentBlock(placed.node, card, card.y - placed.extra, band.y - card.y + placed.extra);
+    }
+    const placed = fitted(context, 'rodape', words, geometry.foot, LIGHT, ink('ink'), card, inner);
+    const footTop = band.y + band.h;
+    return segmentBlock(placed.node, card, footTop, card.y + card.h - footTop);
+  };
 
-  const bandWords = fitted(
-    context,
-    'faixa-texto',
-    parts[main]!.words,
-    geometry.bandText,
-    BLACK,
-    ink('on-accent'),
-    card,
-    inner,
-    true,
-  );
-  const bandGrowth = bandWords.extra;
-  const bandTop = band.y - bandGrowth;
-
-  const words: NodeDraft[] = [];
-  let growth = 0;
-  if (hasTitle) {
-    const placed = fitted(
-      context,
-      'oferta',
-      titleWords,
-      geometry.title,
-      LIGHT,
-      ink('ink'),
-      card,
-      inner,
-      true,
-      bandGrowth,
-    );
-    growth = placed.extra;
-    words.push(placed.node);
-  }
-  words.push(bandWords.node);
-  if (hasFoot) {
-    words.push(
-      fitted(context, 'rodape', footWords, geometry.foot, LIGHT, ink('ink'), card, inner).node,
-    );
-  }
-
-  const top = (hasTitle ? card.y - growth : band.y) - bandGrowth;
-  const bottom = hasFoot ? card.y + card.h : band.y + band.h;
-  const corner = (rounded: boolean) => (rounded ? CARD_RADIUS : 0);
-  const nodes: NodeDraft[] = [
-    rect({
-      name: 'cartao',
-      size: { w: card.w, h: bottom - top },
-      radius: CARD_RADIUS,
-      stroke: { paint: solid(ink('accent')), width: 2, align: 'inside' },
-      transform: { x: card.x, y: top },
-    }),
-    rect({
+  const segments = cardSegments(levelsOf(apelo), segmentOf);
+  if (segments.length === 0) return { nodes: [], top: card.y };
+  const drawn = drawCard(segments, {
+    name: 'cartao',
+    width: card.w,
+    radius: CARD_RADIUS,
+    stroke: { paint: solid(ink('accent')), width: 2, align: 'inside' },
+    band: {
       name: 'faixa',
-      size: { w: card.w, h: band.h + bandGrowth },
-      radius: [corner(!hasTitle), corner(!hasTitle), corner(!hasFoot), corner(!hasFoot)],
       fill: solid(ink('accent')),
       effects: [
         { kind: 'shadow', x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } },
       ],
-      transform: { x: card.x, y: bandTop },
-    }),
-    ...words,
-  ];
-  return { nodes, top };
+    },
+  });
+  // The band's bottom edge is the one that stays: a band or title that grows rises (TYTO-811).
+  const top = band.y + band.h - bandBottom(drawn)!;
+  return { nodes: [at(card.x, top, drawn)], top };
+}
+
+/** Words placed in frame coordinates, as a block whose origin is the segment's top-left. */
+function segmentBlock(node: NodeDraft, card: Geometry['card'], top: number, height: number): Block {
+  return block(card.w, height, group({ children: [node], transform: { x: -card.x, y: -top } }));
 }
 
 /* ------------------------------------------------------------------ placing words -- */
