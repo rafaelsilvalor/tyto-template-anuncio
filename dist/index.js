@@ -3776,10 +3776,10 @@ var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
     }
     return void 0;
   });
-  const first2 = def.options.length === 1 ? def.options[0]._zod.run : null;
+  const first = def.options.length === 1 ? def.options[0]._zod.run : null;
   inst._zod.parse = (payload, ctx) => {
-    if (first2) {
-      return first2(payload, ctx);
+    if (first) {
+      return first(payload, ctx);
     }
     let async = false;
     const results = [];
@@ -3836,10 +3836,10 @@ function handleExclusiveUnionResults(results, final, inst, ctx) {
 var $ZodXor = /* @__PURE__ */ $constructor("$ZodXor", (inst, def) => {
   $ZodUnion.init(inst, def);
   def.inclusive = false;
-  const first2 = def.options.length === 1 ? def.options[0]._zod.run : null;
+  const first = def.options.length === 1 ? def.options[0]._zod.run : null;
   inst._zod.parse = (payload, ctx) => {
-    if (first2) {
-      return first2(payload, ctx);
+    if (first) {
+      return first(payload, ctx);
     }
     let async = false;
     const results = [];
@@ -5071,17 +5071,17 @@ var recursive = /* @__PURE__ */ new WeakMap();
 var NONE = 0;
 var ASSUMED = 1;
 var PROVEN = 2;
-function isRecursive(inst, stack, resolve) {
+function isRecursive(inst, stack2, resolve) {
   const cached2 = recursive.get(inst);
   if (cached2 !== void 0)
     return cached2 ? PROVEN : NONE;
-  if (stack.has(inst))
+  if (stack2.has(inst))
     return PROVEN;
-  stack.add(inst);
+  stack2.add(inst);
   let result = NONE;
   const check2 = (child) => {
     if (result !== PROVEN && child?._zod) {
-      const answer = isRecursive(child, stack, resolve);
+      const answer = isRecursive(child, stack2, resolve);
       if (answer > result)
         result = answer;
     }
@@ -5092,7 +5092,7 @@ function isRecursive(inst, stack, resolve) {
       const desc = Object.getOwnPropertyDescriptor(sh, key);
       if (spread && !desc.enumerable)
         continue;
-      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve) : NONE;
+      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack2, resolve) : NONE;
       if (child > answer)
         answer = child;
     }
@@ -5157,7 +5157,7 @@ function isRecursive(inst, stack, resolve) {
     // `$ZodLazy` caches its inner on the def, so a resolved edge is followed exactly
     case "lazy": {
       const inner = def._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
-      merge2(inner ? isRecursive(inner, stack, false) : ASSUMED);
+      merge2(inner ? isRecursive(inner, stack2, false) : ASSUMED);
       break;
     }
     // a leaf by choice: `parts` are regex fragments, not data positions
@@ -5200,7 +5200,7 @@ function isRecursive(inst, stack, resolve) {
       }
     }
   }
-  stack.delete(inst);
+  stack2.delete(inst);
   return settle(inst, result);
 }
 function settle(inst, answer) {
@@ -16314,9 +16314,9 @@ var numberProcessor = (schema, ctx, _json, params) => {
       else
         handleUnrepresentable(schema, ctx, json2, params, `A multipleOf divisor of ${divisor} cannot be represented in JSON Schema`);
     }
-    const [first2, ...rest] = divisors;
-    if (first2 !== void 0)
-      json2.multipleOf = first2;
+    const [first, ...rest] = divisors;
+    if (first !== void 0)
+      json2.multipleOf = first;
     if (rest.length)
       json2.allOf = [...json2.allOf ?? [], ...rest.map((m) => ({ multipleOf: m }))];
   }
@@ -19020,14 +19020,14 @@ function checkArrayGuards(arraySchema, guards) {
         const key = canonicalKey(items[i], /* @__PURE__ */ new Set());
         if (key === null)
           continue;
-        const first2 = firstSeen.get(key);
-        if (first2 === void 0) {
+        const first = firstSeen.get(key);
+        if (first === void 0) {
           firstSeen.set(key, i);
           continue;
         }
         payload.issues.push({
           code: "custom",
-          message: `Array items must be unique: element at index ${i} duplicates the one at index ${first2}`,
+          message: `Array items must be unique: element at index ${i} duplicates the one at index ${first}`,
           input: items,
           path: [i],
           continue: true
@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.53.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-RIFAFZR6.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.54.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-5L2PHC5K.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -20511,6 +20511,22 @@ var diagnosticCodes = {
     fatal: true,
     fatality: "The IR is malformed, so the exporter has nothing it can draw."
   },
+  E_SCENE_GUIDE_NODE_NOT_FOUND: {
+    severity: "error",
+    summary: "A guide's layer names a node that is not one of its frame's top-level children.",
+    template: "Layer '{layer}' of the guide for '{frame}' names node '{id}', which is not one of the frame's top-level children.",
+    spec: "docs/adr/0220-a-slot-may-declare-art-painted-outside-tyto.md",
+    fatal: true,
+    fatality: "The IR is malformed, so the exporter has nothing it can draw."
+  },
+  E_SCENE_GUIDE_LAYERING: {
+    severity: "error",
+    summary: "A frame's node is not in exactly one of its guide's layers.",
+    template: "Node '{id}' of the guide for '{frame}' is in {count} layers; every top-level node is in exactly one.",
+    spec: "docs/adr/0220-a-slot-may-declare-art-painted-outside-tyto.md",
+    fatal: true,
+    fatality: "A node in no layer would vanish from the layered file and one in two would be painted twice, so the IR is malformed."
+  },
   E_SCENE_MASK_DESCENDANT: {
     severity: "error",
     summary: "A mask references a descendant of the node it masks.",
@@ -20603,6 +20619,30 @@ var diagnosticCodes = {
     spec: "docs/template-authoring.md",
     fatal: true,
     fatality: "A frame with no size cannot be drawn, and `compile` refuses before it builds anything \u2014 so the formats that are defined do not render either, which is what would have to change first."
+  },
+  E_EXTERNAL_ART_ASPECT: {
+    severity: "error",
+    summary: "A slot's full external art does not keep the proportion of a format it covers (ADR 0220).",
+    template: "Slot '{slot}' of template '{template}' declares full art of {width}\xD7{height} for format '{format}', which is {formatWidth}\xD7{formatHeight}: full art keeps the format's proportion, so its height there is {expected}.",
+    spec: "docs/adr/0220-a-slot-may-declare-art-painted-outside-tyto.md",
+    fatal: true,
+    fatality: "The declaration is the size somebody paints to, and art painted to the wrong proportion is cropped or stretched on every render; `compile` refuses before it builds anything, as it does for a format with no size."
+  },
+  E_GUIDE_NO_EXTERNAL_ART: {
+    severity: "error",
+    summary: "A guide was asked for a brief whose template declares no art painted outside Tyto (ADR 0221).",
+    template: "Template '{template}' declares no slot with external art, so there is no guide to write: a guide is for a slot whose manifest declares 'external'.",
+    spec: "docs/adr/0221-a-guides-layers-are-rasterised-into-the-scene-and-an-exporter-may-answer-bytes.md",
+    fatal: true,
+    fatality: "A guide with no art is the artwork cut into layers with nowhere to paint, which looks like a guide and guides nothing; the run writes no file."
+  },
+  E_GUIDE_NEWER_THAN_BRIEF: {
+    severity: "error",
+    summary: "A guide was not written over because it changed after the brief and may hold paint (ADR 0222).",
+    template: "The guide '{guide}' was changed after the brief, and may hold the art painted in it: move it away, or pass --force to write it again.",
+    spec: "docs/adr/0222-external-art-has-a-file-per-format-beside-the-cited-one.md",
+    fatal: true,
+    fatality: "Writing over a guide somebody painted in loses their work with no way back, so the run writes no guide at all and says which file stopped it."
   },
   E_MANIFEST_SYNTAX: {
     severity: "error",
@@ -20832,6 +20872,14 @@ var diagnosticCodes = {
     spec: "docs/adr/0058-a-template-reports-warnings-beside-its-frame.md",
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
+  },
+  W_EXTERNAL_ART_MISSING: {
+    severity: "warning",
+    summary: "A slot whose art is painted outside Tyto has no file yet, and an outlined box stands in for it (ADR 0220).",
+    template: "Slot '{slot}' of template '{template}' has no art yet ({reason}); an outlined box is drawn where it goes.",
+    spec: "docs/adr/0220-a-slot-may-declare-art-painted-outside-tyto.md",
+    fatal: false,
+    fatality: "The art arrives later by design, and the box keeps its place, size and stacking in every format; a warning never replaces a value (ADR 0013)."
   },
   // Warnings and not errors: a configuration is tolerant per value, as a plugin file is per
   // entry (ADR 0151 decision 2). The template draws with its default instead, and says so.
@@ -22210,7 +22258,7 @@ function colorValue(context, name, fallback) {
   return typeof value === "string" ? value : fallback;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.53.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.54.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -22312,7 +22360,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.6/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22349,7 +22397,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.12.9/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.13.1/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -22369,11 +22417,50 @@ function shifted(draft, dx, dy) {
       return { ...draft, transform: transform2 };
   }
 }
+function offsetFor(align, room, size) {
+  switch (align) {
+    case "start":
+      return 0;
+    case "center":
+      return (room - size) / 2;
+    case "end":
+      return room - size;
+  }
+}
 function block(width, height, draft) {
   return { width, height, draft };
 }
+function stack(options) {
+  const gap = options.gap ?? 0;
+  const align = options.align ?? "start";
+  const width = options.items.reduce((widest, item) => Math.max(widest, item.width), 0);
+  let y = 0;
+  const children = [];
+  for (const item of options.items) {
+    children.push(shifted(item.draft, offsetFor(align, width, item.width), y));
+    y += item.height + gap;
+  }
+  const height = options.items.length === 0 ? 0 : y - gap;
+  return { width, height, draft: groupOf(children, options.name) };
+}
+function row(options) {
+  const gap = options.gap ?? 0;
+  const align = options.align ?? "start";
+  const height = options.items.reduce((tallest, item) => Math.max(tallest, item.height), 0);
+  let x = 0;
+  const children = [];
+  for (const item of options.items) {
+    children.push(shifted(item.draft, x, offsetFor(align, height, item.height)));
+    x += item.width + gap;
+  }
+  const width = options.items.length === 0 ? 0 : x - gap;
+  return { width, height, draft: groupOf(children, options.name) };
+}
 function at(x, y, item) {
   return shifted(item.draft, x, y);
+}
+function groupOf(children, name) {
+  return group({ children, ...name === void 0 ? {} : { name } });
 }
 var NUMBER = String.raw`\d[\d.,]*`;
 var UNITS = [
@@ -22427,86 +22514,10 @@ var KEEP_TOGETHER_RULES = [
     after: String.raw`(?:${UNITS.join("|")})(?!\p{L})`
   }
 ];
-var LONGEST_LABEL = 40;
 var LABEL_EXCEPTIONS = [
   { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
   { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
 ];
-function separatorAt(line, options) {
-  const separator = options.separator ?? ":";
-  if (separator === "") return void 0;
-  const covered = (options.notLabels ?? LABEL_EXCEPTIONS).flatMap(
-    (exception) => [...line.matchAll(new RegExp(exception.pattern, "gu"))].map((match) => ({
-      start: match.index,
-      end: match.index + match[0].length
-    }))
-  );
-  let at2 = line.indexOf(separator);
-  while (at2 >= 0 && covered.some((span) => span.start <= at2 && at2 < span.end)) {
-    at2 = line.indexOf(separator, at2 + 1);
-  }
-  if (at2 < 0) return void 0;
-  const label = line.slice(0, at2);
-  if (label.includes("\n") || label.trim() === "") return void 0;
-  if ([...label.trim()].length > (options.longestLabel ?? LONGEST_LABEL)) return void 0;
-  return at2;
-}
-function labelOf(line, options = {}) {
-  const at2 = separatorAt(flatten2(line), options);
-  if (at2 === void 0) return { label: void 0, text: line };
-  const end = at2 + (options.separator ?? ":").length;
-  return {
-    label: cut(line, 0, options.keepSeparator === false ? at2 : end),
-    text: cut(line, end, Infinity)
-  };
-}
-function cut(value, start, end) {
-  let offset = 0;
-  const within = (inlines) => inlines.flatMap((inline) => {
-    switch (inline.kind) {
-      case "text": {
-        const from = offset;
-        offset += inline.value.length;
-        const kept = inline.value.slice(Math.max(start - from, 0), Math.max(end - from, 0));
-        if (kept === "") return [];
-        const shift2 = Math.max(start - from, 0);
-        const rangeStart = Math.min(inline.range.start + shift2, inline.range.end);
-        return [
-          {
-            ...inline,
-            value: kept,
-            range: {
-              start: rangeStart,
-              end: Math.min(rangeStart + kept.length, inline.range.end)
-            }
-          }
-        ];
-      }
-      case "break": {
-        const from = offset;
-        offset += 1;
-        return start <= from && from < end ? [inline] : [];
-      }
-      default: {
-        const children = within(inline.children);
-        return children.length === 0 ? [] : [{ ...inline, children }];
-      }
-    }
-  });
-  return within(value);
-}
-function flatten2(value) {
-  return value.map((inline) => {
-    switch (inline.kind) {
-      case "text":
-        return inline.value;
-      case "break":
-        return "\n";
-      default:
-        return flatten2(inline.children);
-    }
-  }).join("");
-}
 function mark(shape, height, fill, name) {
   const scale = height / shape.box.h;
   return block(
@@ -22525,9 +22536,78 @@ function reportOverflow(report, bottom, limit) {
   const overflow = bottom - limit;
   if (overflow > 0) report({ code: "W_TEMPLATE_OVERFLOW", overflow });
 }
+var FIELD_SEPARATOR = "|";
+function lines(text2) {
+  const result = [];
+  let current = [];
+  for (const inline of text2) {
+    if (inline.kind === "break") {
+      result.push(current);
+      current = [];
+      continue;
+    }
+    current.push(inline);
+  }
+  result.push(current);
+  return result.filter((line) => plain(line).trim() !== "");
+}
+function fields(line, limit) {
+  const result = [[]];
+  const last = () => result[result.length - 1];
+  for (const inline of line) {
+    if (inline.kind !== "text" || limit !== void 0 && result.length >= limit) {
+      last().push(inline);
+      continue;
+    }
+    const parts = inline.value.split(FIELD_SEPARATOR);
+    for (const [index, part] of parts.entries()) {
+      if (index > 0) {
+        if (limit !== void 0 && result.length >= limit) {
+          last().push(sliceOf(inline, `${FIELD_SEPARATOR}${part}`, inline.value));
+          continue;
+        }
+        result.push([]);
+      }
+      if (part !== "") last().push(sliceOf(inline, part, inline.value));
+    }
+  }
+  return result.map(trimEnds);
+}
+function plain(text2) {
+  return text2.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return inline.value;
+      case "break":
+        return "\n";
+      default:
+        return plain(inline.children);
+    }
+  }).join("");
+}
+function sliceOf(inline, part, whole) {
+  const offset = whole.indexOf(part);
+  const start = Math.min(inline.range.start + Math.max(offset, 0), inline.range.end);
+  return {
+    kind: "text",
+    value: part,
+    range: { start, end: Math.min(start + part.length, inline.range.end) }
+  };
+}
+function trimEnds(field) {
+  const trimmed = [...field];
+  const first = trimmed[0];
+  if (first?.kind === "text") trimmed[0] = { ...first, value: first.value.replace(/^\s+/u, "") };
+  const lastIndex = trimmed.length - 1;
+  const final = trimmed[lastIndex];
+  if (final?.kind === "text") {
+    trimmed[lastIndex] = { ...final, value: final.value.replace(/\s+$/u, "") };
+  }
+  return trimmed.filter((inline) => inline.kind !== "text" || inline.value !== "");
+}
 function atLeastOne(runs) {
-  const [first2, ...rest] = runs;
-  return first2 === void 0 ? void 0 : [first2, ...rest];
+  const [first, ...rest] = runs;
+  return first === void 0 ? void 0 : [first, ...rest];
 }
 function runsIn(value, style2) {
   return atLeastOne(
@@ -22561,34 +22641,102 @@ function naturalWidth(value, style2, measure) {
   const measured = measure(text({ runs, box: {} }));
   return measured === void 0 ? void 0 : Math.ceil(measured.width);
 }
-function lines(text2) {
-  const result = [];
-  let current = [];
-  for (const inline of text2) {
-    if (inline.kind === "break") {
-      result.push(current);
-      current = [];
+var DIVIDER = "---";
+function levelsOf(text2) {
+  const items = [];
+  for (const line of lines(text2)) {
+    const written = plain(line).trim();
+    if (written === "") continue;
+    if (written === DIVIDER) {
+      items.push({ kind: "divider" });
       continue;
     }
-    current.push(inline);
+    const parts = fields(line).filter((part) => plain(part).trim() !== "").map(markOf);
+    if (parts.length === 0) continue;
+    const first = !items.some((item) => item.kind === "line");
+    items.push({ kind: "line", parts: ranked(parts, first) });
   }
-  result.push(current);
-  return result.filter((line) => plain(line).trim() !== "");
+  return items;
 }
-function plain(text2) {
-  return text2.map((inline) => {
-    switch (inline.kind) {
-      case "text":
-        return inline.value;
-      case "break":
-        return "\n";
-      default:
-        return plain(inline.children);
+function markOf(part) {
+  const first = part[0];
+  if (first?.kind !== "text") return { words: part, level: 0 };
+  const match = /^(#{1,3})\s+/u.exec(first.value);
+  if (match === null) return { words: part, level: 0 };
+  const rest = first.value.slice(match[0].length);
+  const start = Math.min(first.range.start + match[0].length, first.range.end);
+  const head = rest === "" ? [] : [{ ...first, value: rest, range: { start, end: first.range.end } }];
+  return { words: [...head, ...part.slice(1)], level: match[1].length };
+}
+function ranked(parts, first) {
+  const marked = parts.filter((part) => part.level > 0);
+  let main;
+  let levels;
+  if (marked.length === 0 && !first) {
+    return parts.map((part) => ({ words: part.words, level: 0, position: "after" }));
+  }
+  if (marked.length === 0) {
+    main = parts.length >= 3 ? 1 : 0;
+    levels = parts.map((_, index) => index === main ? 1 : 0);
+  } else {
+    const highest = Math.min(...marked.map((part) => part.level));
+    main = parts.findIndex((part) => part.level === highest);
+    levels = parts.map((part) => part.level);
+  }
+  return parts.map((part, index) => ({
+    words: part.words,
+    level: levels[index],
+    position: index < main ? "before" : index === main ? "main" : "after"
+  }));
+}
+function levelStack(items, style2, width, measure) {
+  const align = style2.align ?? "center";
+  const lineGap = style2.lineGap ?? style2.gap;
+  const drawn = [];
+  for (const item of items) {
+    if (item.kind === "divider") {
+      if (style2.divider !== void 0) drawn.push({ kind: "divider", item: style2.divider(width) });
+      continue;
     }
-  }).join("");
+    const rows = item.parts.map((part, index) => rowOf(part, index, style2, width, measure, align));
+    drawn.push({ kind: "line", rows });
+  }
+  const kept = drawn.filter(
+    (each, index) => each.kind !== "divider" || drawn.slice(0, index).some((before) => before.kind === "line") && drawn.slice(index + 1).some((after) => after.kind === "line")
+  );
+  let y = 0;
+  const children = [];
+  for (const [index, each] of kept.entries()) {
+    if (index > 0) y += lineGap;
+    const pieces = each.kind === "line" ? each.rows : [each.item];
+    for (const [row2, piece] of pieces.entries()) {
+      if (row2 > 0) y += style2.gap;
+      children.push(at(offsetOf(align, width, piece.width), y, piece));
+      y += piece.height;
+    }
+  }
+  if (children.length === 0) return stack({ name: style2.name, items: [] });
+  return block(width, y, group({ name: style2.name, children }));
+}
+function rowOf(part, index, style2, width, measure, align) {
+  const look = style2.look(part);
+  const lineHeight = look.lineHeight ?? 1.2;
+  const words = look.transform === void 0 ? part.words : look.transform(part.words);
+  return grownTextBlock(words, width, look.style.size * lineHeight, look.style, measure, {
+    name: `${style2.name}-${part.position}-${index}`,
+    align: TEXT_ALIGN[align],
+    lineHeight,
+    ...look.letterSpacing === void 0 ? {} : { letterSpacing: look.letterSpacing }
+  });
+}
+var TEXT_ALIGN = { start: "left", center: "center", end: "right" };
+function offsetOf(align, width, itemWidth) {
+  if (align === "center") return (width - itemWidth) / 2;
+  if (align === "end") return width - itemWidth;
+  return 0;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.6/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22624,7 +22772,7 @@ function drawLogo(kit, height, inks) {
   return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.6/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -22703,6 +22851,8 @@ var GRID = {
   name: { capTop: 607, size: 69.6 },
   support: { capTop: 711, size: 39 },
   salary: { capTop: 766, size: 52 },
+  partGap: 29,
+  lineGap: 25,
   card: { x: 142, y: 872, w: 796, h: 266 },
   band: { y: 948, h: 117 },
   title: { capTop: 891, size: 50 },
@@ -22718,6 +22868,8 @@ var STORY = {
   name: { capTop: 929, size: 79.4 },
   support: { capTop: 1072, size: 39 },
   salary: { capTop: 1142, size: 66.4 },
+  partGap: 32,
+  lineGap: 47,
   card: { x: 105, y: 1263, w: 870, h: 290 },
   band: { y: 1347, h: 127 },
   title: { capTop: 1283, size: 54.7 },
@@ -22731,47 +22883,25 @@ function geometryOf(size) {
 }
 var TEXT_MARGIN = 60;
 var CARD_PADDING = 48;
+var CARD_RADIUS = 39;
 var FIT_FLOOR = 0.7;
-var LINE_GAP = 14;
 var HEAD_GAP = 56;
 var PROOF_GAP = 42;
 var PANEL_RISE_FLOOR = 0.5;
 var NO_PHOTO = "#c9ccd2";
+var TRACKING = 0.8;
+var DOT = 12;
+var DOT_GAP = 10;
 var EMPTY = [];
 function wordsOf(context, name) {
   const value = context.slots[name]?.value;
   return value?.kind === "rich-text" ? value.text : EMPTY;
 }
-function keyOf(label) {
-  return plain(label).normalize("NFD").replace(/\p{M}/gu, "").replace(/:\s*$/u, "").trim().toLowerCase();
-}
-function fieldsOf(text2) {
-  const unlabelled = [];
-  const labelled = /* @__PURE__ */ new Map();
-  for (const line of lines(text2)) {
-    if (plain(line).trim() === "") continue;
-    const { label, text: value } = labelOf(line);
-    if (label === void 0) {
-      unlabelled.push(line);
-      continue;
-    }
-    const key = keyOf(label);
-    labelled.set(key, [...labelled.get(key) ?? [], value]);
-  }
-  return { unlabelled, labelled };
-}
-function first(fields, ...keys) {
-  for (const key of keys) {
-    const found = fields.labelled.get(key)?.[0];
-    if (found !== void 0) return found;
-  }
-  return void 0;
-}
 function joined(parts) {
   return parts.flatMap((part, index) => {
     if (index === 0) return [...part];
-    const at2 = part[0]?.range.start ?? 0;
-    return [{ kind: "break", range: { start: at2, end: at2 } }, ...part];
+    const start = part[0]?.range.start ?? 0;
+    return [{ kind: "break", range: { start, end: start } }, ...part];
   });
 }
 function upper(text2) {
@@ -22791,14 +22921,12 @@ function upper(text2) {
 var build = (context) => {
   const ink = (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
   const geometry = geometryOf(context.size);
-  const exam = fieldsOf(wordsOf(context, "concurso"));
-  const version2 = fieldsOf(wordsOf(context, "versao"));
-  const proofWords = first(exam, "aprovacao");
-  const proof = proofWords === void 0 ? void 0 : centredBlock(context, "aprovacao", proofWords, geometry.proof, LIGHT, ink("ink"));
-  const proofLift = Math.max(0, (proof?.bottom ?? 0) + PROOF_GAP - geometry.logo.top);
-  const offer = cartao(context, ink, geometry, version2);
-  const cardTop = geometry.card.y - offer.growth - proofLift;
-  const head = vitrine(context, ink, geometry, exam);
+  const noteWords = wordsOf(context, "nota");
+  const note = plain(noteWords).trim() === "" ? void 0 : centredBlock(context, "nota", noteWords, geometry.proof, LIGHT, ink("ink"));
+  const noteLift = Math.max(0, (note?.bottom ?? 0) + PROOF_GAP - geometry.logo.top);
+  const offer = cartao(context, ink, geometry, wordsOf(context, "apelo"));
+  const cardTop = offer.top - noteLift;
+  const head = vitrine(context, ink, geometry, wordsOf(context, "titulo"));
   const wanted = Math.max(0, head.bottom + HEAD_GAP - cardTop);
   const headLift = Math.min(wanted, geometry.panelTop * (1 - PANEL_RISE_FLOOR));
   reportOverflow(context.report, head.bottom - headLift + HEAD_GAP, cardTop);
@@ -22819,8 +22947,8 @@ var build = (context) => {
         transform: { y: panelTop }
       }),
       lifted("cabeca", head.nodes, headLift),
-      lifted("oferta", offer.nodes, proofLift),
-      ...proof === void 0 ? [] : [lifted("prova", [proof.node], proofLift)],
+      lifted("oferta", offer.nodes, noteLift),
+      ...note === void 0 ? [] : [lifted("nota", [note.node], noteLift)],
       at((context.size.w - logo.width) / 2, geometry.logo.top, logo)
     ]
   });
@@ -22830,63 +22958,75 @@ function lifted(name, nodes, lift) {
 }
 function photo(context, geometry) {
   const size = { w: context.size.w, h: geometry.panelTop + geometry.panelRadius };
-  const value = context.slots["foto"]?.value;
+  const value = context.slots["imagem"]?.value;
   if (value?.kind === "image") {
-    return image({ name: "foto", asset: value.asset, size, fit: "cover" });
+    return image({ name: "imagem", asset: value.asset, size, fit: "cover" });
   }
-  return rect({ name: "foto", size, fill: solid(NO_PHOTO) });
+  return rect({ name: "imagem", size, fill: solid(NO_PHOTO) });
 }
-function vitrine(context, ink, geometry, exam) {
-  const [kicker, name, ...support] = exam.unlabelled;
-  const facts = ["vagas", "banca"].flatMap(
-    (key) => (exam.labelled.get(key) ?? []).map((value) => labelledLine(key, value))
+function vitrine(context, ink, geometry, titulo) {
+  const width = context.size.w - 2 * TEXT_MARGIN;
+  const stacked = levelStack(
+    levelsOf(titulo),
+    {
+      name: "titulo",
+      look: (part) => lookOf(part, geometry, ink),
+      gap: geometry.partGap,
+      lineGap: geometry.lineGap,
+      divider: () => dots(ink("ink"))
+    },
+    width,
+    context.measure
   );
-  const supportText = joined([...support, ...facts.length === 0 ? [] : [sideBySide(facts)]]);
-  const salary = first(exam, "salario");
-  const nodes = [];
-  let bottom = 0;
-  const place = (slot, words, spot, weight, color2) => {
-    if (words === void 0 || plain(words).trim() === "") return;
-    const capTop = bottom === 0 ? spot.capTop : Math.max(spot.capTop, bottom + LINE_GAP);
-    const placed = centredBlock(context, slot, words, { ...spot, capTop }, weight, color2);
-    nodes.push(placed.node);
-    bottom = placed.bottom;
-  };
-  place("sobretitulo", kicker, geometry.kicker, MEDIUM, ink("ink"));
-  place(
-    "concurso",
-    name === void 0 ? void 0 : upper(name),
-    geometry.name,
-    BLACK,
-    ink("accent")
-  );
-  place("apoio", supportText, geometry.support, LIGHT, ink("ink"));
-  place("salario", salary, geometry.salary, MEDIUM, ink("ink"));
-  return { nodes, bottom };
+  if (stacked.height === 0) return { nodes: [], bottom: 0 };
+  const top = geometry.kicker.capTop - capOffset(geometry.kicker.size);
+  return { nodes: [at(TEXT_MARGIN, top, stacked)], bottom: top + stacked.height };
 }
-function sideBySide(facts) {
-  return facts.flatMap((fact, index) => {
-    if (index === 0) return [...fact];
-    const at2 = fact[0]?.range.start ?? 0;
-    return [{ kind: "text", value: " \xB7 ", range: { start: at2, end: at2 } }, ...fact];
+function lookOf(part, geometry, ink) {
+  const look = (spot, weight, color2) => ({
+    style: styleOf(spot.size, weight, color2),
+    lineHeight: LINE_HEIGHT
   });
+  switch (part.level) {
+    case 1:
+      return { ...look(geometry.name, BLACK, ink("accent")), transform: upper };
+    case 2:
+      return part.position === "before" ? look(geometry.kicker, MEDIUM, ink("ink")) : look(geometry.salary, MEDIUM, ink("ink"));
+    case 3:
+      return look(geometry.support, MEDIUM, ink("ink"));
+    default:
+      return part.position === "before" ? {
+        ...look(geometry.support, LIGHT, ink("accent")),
+        letterSpacing: geometry.support.size * TRACKING,
+        transform: upper
+      } : look(geometry.support, LIGHT, ink("ink"));
+  }
 }
-function labelledLine(key, value) {
-  const label = key === "vagas" ? "Vagas" : "Banca";
-  const start = value[0]?.range.start ?? 0;
-  return [{ kind: "text", value: `${label}: `, range: { start, end: start } }, ...value];
+function dots(color2) {
+  const dot = () => block(
+    DOT,
+    DOT,
+    rect({ name: "ponto", size: { w: DOT, h: DOT }, radius: DOT / 2, fill: solid(color2) })
+  );
+  return row({ name: "divisor", items: [dot(), dot(), dot()], gap: DOT_GAP });
 }
-function cartao(context, ink, geometry, version2) {
+function cartao(context, ink, geometry, apelo) {
   const { card, band } = geometry;
+  const parts = levelsOf(apelo).flatMap((item) => item.kind === "line" ? item.parts : []);
+  const main = parts.findIndex((part) => part.position === "main");
+  if (main < 0) return { nodes: [], top: card.y };
   const inner = card.w - 2 * CARD_PADDING;
+  const titleWords = joined(parts.slice(0, main).map((part) => part.words));
+  const footWords = joined(parts.slice(main + 1).map((part) => part.words));
+  const hasTitle = plain(titleWords).trim() !== "";
+  const hasFoot = plain(footWords).trim() !== "";
   const words = [];
   let growth = 0;
-  const title = first(version2, "oferta");
-  if (title !== void 0) {
+  if (hasTitle) {
     const placed = fitted(
       context,
       "oferta",
-      title,
+      titleWords,
       geometry.title,
       LIGHT,
       ink("ink"),
@@ -22897,35 +23037,38 @@ function cartao(context, ink, geometry, version2) {
     growth = placed.extra;
     words.push(placed.node);
   }
-  const bandWords = first(version2, "desconto", "destaque");
-  if (bandWords !== void 0) {
-    const placed = fitted(
+  words.push(
+    fitted(
       context,
-      "desconto",
-      bandWords,
+      "faixa-texto",
+      parts[main].words,
       geometry.bandText,
       BLACK,
       ink("on-accent"),
       card,
       inner
+    ).node
+  );
+  if (hasFoot) {
+    words.push(
+      fitted(context, "rodape", footWords, geometry.foot, LIGHT, ink("ink"), card, inner).node
     );
-    words.push(placed.node);
   }
-  const foot = first(version2, "prazo", "garantia", "cupom");
-  if (foot !== void 0) {
-    words.push(fitted(context, "rodape", foot, geometry.foot, LIGHT, ink("ink"), card, inner).node);
-  }
+  const top = hasTitle ? card.y - growth : band.y;
+  const bottom = hasFoot ? card.y + card.h : band.y + band.h;
+  const corner = (rounded) => rounded ? CARD_RADIUS : 0;
   const nodes = [
     rect({
       name: "cartao",
-      size: { w: card.w, h: card.h + growth },
-      radius: 39,
+      size: { w: card.w, h: bottom - top },
+      radius: CARD_RADIUS,
       stroke: { paint: solid(ink("accent")), width: 2, align: "inside" },
-      transform: { x: card.x, y: card.y - growth }
+      transform: { x: card.x, y: top }
     }),
     rect({
       name: "faixa",
       size: { w: card.w, h: band.h },
+      radius: [corner(!hasTitle), corner(!hasTitle), corner(!hasFoot), corner(!hasFoot)],
       fill: solid(ink("accent")),
       effects: [
         { kind: "shadow", x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } }
@@ -22934,14 +23077,14 @@ function cartao(context, ink, geometry, version2) {
     }),
     ...words
   ];
-  return { nodes, growth };
+  return { nodes, top };
 }
 function styleOf(size, weight, color2) {
   return { font: FACE2, size, weight, color: color2 };
 }
 function centredBlock(context, name, words, spot, weight, color2) {
   const width = context.size.w - 2 * TEXT_MARGIN;
-  const block2 = grownTextBlock(
+  const shown = grownTextBlock(
     words,
     width,
     0,
@@ -22950,20 +23093,20 @@ function centredBlock(context, name, words, spot, weight, color2) {
     { name, align: "center", lineHeight: LINE_HEIGHT, overflow: "grow" }
   );
   const top = spot.capTop - capOffset(spot.size);
-  return { node: at(TEXT_MARGIN, top, block2), bottom: top + block2.height };
+  return { node: at(TEXT_MARGIN, top, shown), bottom: top + shown.height };
 }
 function fitted(context, name, words, spot, weight, color2, card, inner, growUp = false) {
   const size = fitSize(words, spot.size, weight, color2, inner, context.measure);
-  const block2 = grownTextBlock(words, inner, 0, styleOf(size, weight, color2), context.measure, {
+  const shown = grownTextBlock(words, inner, 0, styleOf(size, weight, color2), context.measure, {
     name,
     align: "center",
     lineHeight: LINE_HEIGHT,
     overflow: "grow"
   });
   const capTop = spot.capTop + CAP_HEIGHT * (spot.size - size) / 2;
-  const extra = Math.max(0, block2.height - size * LINE_HEIGHT);
+  const extra = Math.max(0, shown.height - size * LINE_HEIGHT);
   const top = capTop - capOffset(size) - (growUp ? extra : 0);
-  return { node: at(card.x + CARD_PADDING, top, block2), extra };
+  return { node: at(card.x + CARD_PADDING, top, shown), extra };
 }
 function fitSize(words, size, weight, color2, width, measure) {
   const natural = naturalWidth(words, styleOf(size, weight, color2), measure);

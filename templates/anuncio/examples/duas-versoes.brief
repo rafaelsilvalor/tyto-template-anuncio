@@ -4,19 +4,18 @@ formats: [grid, story]
 ---
 // The offer version and the timeless one of an invented exam.
 
-::concurso
-  Edital publicado
-  Concurso QC Regula
+::titulo
+  ## Edital publicado | # Concurso QC Regula
   Vagas para Analista Técnico e Técnico de Apoio
-  Salário: Ganhe até R$ 9 mil por mês!
-  Aprovação: Estude como **7 a cada 10 aprovados no país**
+  ## Ganhe até R$ 9 mil por mês!
 
-::versao
-  Oferta: Lote Especial
-  Desconto: Pacotes com 40% OFF
-  Prazo: **Por tempo limitado**
+::nota
+  Estude como **7 a cada 10 aprovados no país**
 
-::versao
-  Oferta: Pacote Completo focado no edital
-  Destaque: Edital e na banca Ômegas
-  Garantia: **7 dias de garantia:** teste sem compromisso
+::lamina
+::apelo
+  Lote Especial | # Pacotes com 40% OFF | **Por tempo limitado**
+
+::lamina
+::apelo
+  Pacote Completo focado no edital | # Edital e na banca Ômegas | **7 dias de garantia:** teste sem compromisso

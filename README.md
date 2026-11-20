@@ -10,21 +10,28 @@ template from the brand kit installed on the machine, and without one it draws a
 (Tyto ADR 0063, ADR 0065). The example briefs are invented copy.
 
 **One layout is drawn so far: `vitrine` with `cartao`.** The photograph fills the top; a panel
-with rounded corners rises over it with the status line, the exam's name in capitals, the
-supporting lines and the salary, then the offer card (a title, a band in the accent, a foot),
-the proof of approvals and the logo. Its numbers are a reference art's layers, and they are
-the least each piece gets: a line that wraps pushes the lines under it down, a card title that
-wraps grows the card upward, a proof that wraps lifts the card, and the panel rises over the
-photograph to make the room. Only the logo never moves; past half the panel's height the head
-is reported as an overflow. The other heads
-and offers named below are declared and draw this one until they arrive, with the kit pieces
-they consume (Tyto TYTO-797 to TYTO-801).
+with rounded corners rises over it with the head's lines, then the offer card, the note and the
+logo. Its numbers are a reference art's layers, and they are the least each piece gets: a line
+that wraps pushes the lines under it down, a card title that wraps grows the card upward, a note
+that wraps lifts the card, and the panel rises over the photograph to make the room. Only the
+logo never moves; past half the panel's height the head is reported as an overflow. The other
+heads and offers named below are declared and draw this one until they arrive, with the kit
+pieces they consume (Tyto TYTO-797 to TYTO-801).
 
-In `::concurso`, lines with no label are, in order, the status line, the exam's name and
-supporting lines; `Vagas:` and `Banca:` share one supporting line; `Salário:` is the salary line
-and `Aprovação:` the proof under the card. In `::versao`, `Oferta:` is the card's title,
-`Desconto:` or `Destaque:` its band, and `Prazo:`, `Garantia:` or `Cupom:` its foot. `**…**` is
-bold wherever it is written.
+**The brief speaks Tyto's shared vocabulary** (Tyto `docs/slot-vocabulary.md`), so what a
+writer learned in another template holds here:
+
+- **`::titulo`**, once, is the head, ranked by its marks and read by the kit's `levelsOf`: `|`
+  between the parts of a line; `#` the exam's name, in capitals and the accent; `##` before it
+  the status line, after it the salary; `###` a stronger supporting line; an unmarked part a
+  supporting line, or, before the name, a tracked label in the accent; a line of `---` the three
+  dots. The first line with no mark is read by position; a later unmarked line is supporting.
+- **`::lamina`**, one per artwork, then its **`::apelo`**: the card takes the shape of the
+  line's parts. The main part is the band, the parts before it the title, the parts after it
+  the foot, and the band takes the corners of the edge it reaches.
+- **`::nota`**, once, is the line under the card.
+
+`**…**` is bold wherever it is written. The words are never changed: the marks only rank them.
 
 ## Install into Tyto
 
@@ -38,29 +45,34 @@ installing a name that is already installed replaces it.
 
 A pack brings templates and no formats. Copy `templates/formats.yaml` into the project that
 renders `anuncio`, or merge its `grid` and `story` lines into the project's own. Then a brief
-writes the exam once and one `::versao` per artwork:
+writes the head once and one `::lamina` per artwork:
 
 ```
 ---
 template: anuncio
 formats: [grid, story]
 ---
-::concurso
-  Edital publicado
-  Concurso QC Regula
-  Vagas: 40
+::titulo
+  ## Edital publicado | # Concurso QC Regula
+  Vagas para Analista Técnico
+  ## Ganhe até R$ 9 mil por mês!
 
-::versao
-  Oferta: Lote Especial
-  Desconto: Pacotes com **40% OFF**
+::lamina
+::apelo
+  Lote Especial | # Pacotes com **40% OFF**
 
-::versao
-  Oferta: Pacote Completo
-  Garantia: 7 dias de garantia
+::lamina
+::apelo
+  # Pacote Completo | 7 dias de garantia
 ```
 
-Two versions in two formats are four images. `foto:` and `recorte:` in the frontmatter name the
-head's photograph and a teacher cut out with no background.
+Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
+the head's photograph and a teacher cut out with no background.
+
+**0.3.0 renamed what 0.2.0 briefs wrote:** `::concurso` → `::titulo` (lines ranked by `#`
+instead of labels), `::versao` → `::lamina` with `::apelo` (parts instead of `Oferta:`,
+`Desconto:`, `Prazo:` labels), `Aprovação:` → `::nota`, `foto:` → `imagem:`. A 0.2.0 brief
+gets `E_UNKNOWN_SLOT` at each old name.
 
 ## What it may reach
 
@@ -104,11 +116,13 @@ NODE_AUTH_TOKEN=$(gh auth token) pnpm install
 
 The tests, all without Tyto:
 
-- `src/template.test.ts`: the composition's rules on the scene — both formats drawn, the exam's
-  name in capitals above the offer, every text inside the page's margins, a long band line
-  shrunk to one line, a wrapped head line pushing the next one down, a wrapped card title
-  growing the card upward, the panel rising for a long name, and an overflow reported when the
-  supporting lines grow into the card.
+- `src/template.test.ts`: the composition's rules on the scene — both formats drawn, the `#`
+  part in capitals under the `##` status and above the offer, a later unmarked line smaller,
+  every text inside the page's margins, the card's three shapes (band on top, at the bottom, in
+  the middle, each with its corners), no card without an `apelo`, a long band line shrunk to one
+  line, a wrapped card title growing the card upward, a wrapped head line pushing the next one
+  down, the panel rising for a long name, the divider and the note in place, and an overflow
+  reported when the supporting lines grow into the card.
 - `tests/examples.test.ts`: every example brief compiled as Tyto compiles them, through
   `@tyto/template-kit/testing` (Tyto ADR 0152), against the HTML in `tests/__snapshots__/`.
   Nothing is measured and faces are placeholders, so the snapshot moves when the composition

@@ -39,8 +39,9 @@ const call = (format: string, h: number): TemplateCall => ({
   idPrefix: `artwork-0-${format}`,
   artwork: { id: 'artwork-0', index: 0, count: 1 },
   slots: {
-    concurso: { name: 'concurso', value: rich('Concurso QC Regula'), adjustments: [] },
-    versao: { name: 'versao', value: rich('Oferta: Lote Especial'), adjustments: [] },
+    titulo: { name: 'titulo', value: rich('# Concurso QC Regula'), adjustments: [] },
+    lamina: { name: 'lamina', value: rich(''), adjustments: [] },
+    apelo: { name: 'apelo', value: rich('Lote Especial | # Pacotes com 40% OFF'), adjustments: [] },
   },
   adjustments: {},
   brand: noBrandKit,

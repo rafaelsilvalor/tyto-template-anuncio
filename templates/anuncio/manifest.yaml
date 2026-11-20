@@ -1,5 +1,5 @@
 name: anuncio
-version: 0.2.0
+version: 0.3.0
 description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
@@ -17,18 +17,23 @@ slots:
   cabeca: { type: enum, values: [vitrine, faixa, lateral, manchete, noturna], default: vitrine }
   # The offer's layout, the same way. Only `cartao` is drawn so far.
   oferta: { type: enum, values: [cartao, dupla, lista, chamada, impacto], default: cartao }
-  # The exam, written once for every artwork. Lines with no label are, in order, the status
-  # line, the exam's name (drawn in capitals) and supporting lines. `Vagas:` and `Banca:` join
-  # the supporting lines; `Salário:` is the salary line, drawn without its label; `Aprovação:`
-  # is the proof drawn under the offer.
-  concurso: { type: rich-text, required: true, max: 600 }
-  # One artwork per version: the offer version and the timeless one are two `::versao`. In the
-  # card, `Oferta:` is its title, `Desconto:` (or `Destaque:`) the band, and `Prazo:`,
-  # `Garantia:` or `Cupom:` the foot. `Bonus:` and `Depoimento:` are read by layouts to come.
-  # `max` counts versions.
-  versao: { type: rich-text, repeat: true, min: 1, max: 4 }
+  # The head, written once for every artwork, in the shared vocabulary's levels
+  # (Tyto docs/slot-vocabulary.md): `|` between the parts of a line, `#` the exam's name, `##`
+  # the status before it or the salary after it, `###` a stronger supporting line, an unmarked
+  # part a supporting line, or before the name a tracked label; a line of `---` the dots. The
+  # first line with no mark is read by position; a later unmarked line is a supporting line.
+  titulo: { type: rich-text, required: true, max: 600 }
+  # One artwork each: the offer version and the timeless one are two `::lamina`. A lamina holds
+  # no lines of its own; its `::apelo` follows it. `max` counts artworks.
+  lamina: { type: rich-text, repeat: true, min: 1, max: 4 }
+  # The panel that calls for attention, drawn as a card shaped by its parts: the line's main
+  # part is the band, the parts before it the card's title, the parts after it its foot.
+  # `Lote Especial | # Pacotes com 40% OFF` has no foot, so the band takes the bottom corners.
+  apelo: { type: rich-text, per: lamina }
+  # The line under the card, once for every artwork: the proof of approvals, say.
+  nota: { type: rich-text, max: 200 }
   # The head's photograph, full bleed: a building, a stock image or a generated one.
-  foto: { type: image }
+  imagem: { type: image }
   # A teacher cut out with no background, drawn over the photograph. Not drawn yet.
   recorte: { type: image }
 # What a configuration may change (Tyto ADR 0153). Each default is the reference's (piece 38 of

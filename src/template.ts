@@ -2,9 +2,10 @@
  * `anuncio` — a performance remarketing ad for one exam: the exam's facts at the head and an
  * offer below, in a feed post (1080×1350) and a story (1080×1920).
  *
- * The brief writes the exam once (`::concurso`) and one `::versao` per artwork: the offer
- * version and the timeless one are two occurrences of the same repeating slot, so one brief
- * draws the four boards of the reference PSDs (two versions × two formats).
+ * The brief speaks Tyto's shared vocabulary (`docs/slot-vocabulary.md`): `::titulo` once, the
+ * head for every artwork; one `::lamina` per artwork, the offer version and the timeless one,
+ * each with its own `::apelo`; `::nota` once, the line under the card. One brief draws the four
+ * boards of the reference PSDs (two versions × two formats).
  *
  * The head's layout (`cabeca`) and the offer's (`oferta`) are enum slots, so each named variant
  * (`vitrine-cartao`, `faixa-lista`…) is a configuration of the plugin file that defaults them
@@ -14,13 +15,17 @@
  * ## vitrine + cartao
  *
  * The photograph fills the top; a panel with rounded top corners rises over it and holds,
- * centred: the status line, the exam's name in capitals and the accent, the supporting lines,
- * the salary, then the offer card (a title, a band in the accent, a foot line), the proof of
- * approvals and the logo. Every number below is the reference's (piece 38 of the study, its
- * four boards), read from the PSD's layers: a text is placed by the top of its capitals. A
- * layer's top is that, except where a glyph rises above the capitals: the name's is its
- * baseline less its capital height (the parentheses of `(RS)` rise 10 px higher), and the
- * salary's sits 4 to 5 px under the top of its `$`, measured on the render against the PSD.
+ * centred: the head's lines, then the offer card, the note and the logo.
+ *
+ * **The head is ranked by the brief, not by this file.** Its lines are read with the kit's
+ * `levelsOf` (`|` between parts, `#` to `###` for a part's level, `---` for the divider) and
+ * stacked with `levelStack`; this file says only what each level looks like. Every size is the
+ * reference's (piece 38 of the study), read from the PSD's layers.
+ *
+ * **The card takes the shape of the `apelo`'s parts.** The line's main part is the band; the
+ * parts before it are the card's title, the parts after it its foot. A segment at an edge takes
+ * that edge's corners, so a card with no title has its band on top with rounded top corners.
+ * This is the shape TYTO-800 moves into the kit.
  *
  * The logo is the brand kit's (Tyto ADR 0063), a placeholder without one; every colour is a
  * declared value (Tyto ADR 0153).
@@ -30,17 +35,19 @@ import { colorValue, frame, group, image, rect, solid } from '@tyto/core/templat
 import { drawLogo, oneInk } from '@tyto/house-style';
 import {
   at,
+  block,
   grownTextBlock,
-  labelOf,
-  lines,
+  levelStack,
+  levelsOf,
   naturalWidth,
   plain,
   reportOverflow,
+  row,
 } from '@tyto/template-kit';
 
 import type { Inline, RichText, TemplateBuild, TemplateContext } from '@tyto/core';
 import type { NodeDraft } from '@tyto/core/template';
-import type { Measure, TextStyle } from '@tyto/template-kit';
+import type { Block, LevelLook, LevelPart, Measure, TextStyle } from '@tyto/template-kit';
 
 /* ------------------------------------------------------------------------- the tokens -- */
 
@@ -93,10 +100,17 @@ interface Geometry {
   /** The panel's top edge and its top corners' radius. */
   readonly panelTop: number;
   readonly panelRadius: number;
+  /** The head's first line: the reference's status line, whose top the head starts at. */
   readonly kicker: Spot;
+  /** `#`, the exam's name. */
   readonly name: Spot;
+  /** The base level: the supporting lines. */
   readonly support: Spot;
+  /** `##` after the main part: the salary line. */
   readonly salary: Spot;
+  /** Between two parts of one line, and between two lines, box to box. */
+  readonly partGap: number;
+  readonly lineGap: number;
   /** The card's box; its band spans the card's width. */
   readonly card: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
   readonly band: { readonly y: number; readonly h: number };
@@ -107,7 +121,11 @@ interface Geometry {
   readonly logo: { readonly top: number; readonly height: number };
 }
 
-/** The feed post, board `1350_v1` of the reference. */
+/**
+ * The feed post, board `1350_v1` of the reference. The two gaps are the reference's room
+ * between boxes: status to name 28.6 px; name to supporting line 35.6 and supporting line to
+ * salary 15.5, which one line gap averages.
+ */
 export const GRID: Geometry = {
   panelTop: 486,
   panelRadius: 105,
@@ -115,6 +133,8 @@ export const GRID: Geometry = {
   name: { capTop: 607, size: 69.6 },
   support: { capTop: 711, size: 39 },
   salary: { capTop: 766, size: 52 },
+  partGap: 29,
+  lineGap: 25,
   card: { x: 142, y: 872, w: 796, h: 266 },
   band: { y: 948, h: 117 },
   title: { capTop: 891, size: 50 },
@@ -124,7 +144,7 @@ export const GRID: Geometry = {
   logo: { top: 1245, height: 62 },
 };
 
-/** The story, board `1920_v1` of the reference. */
+/** The story, board `1920_v1` of the reference: status to name 32 px, the lines 65 and 30. */
 export const STORY: Geometry = {
   panelTop: 745,
   panelRadius: 105,
@@ -132,6 +152,8 @@ export const STORY: Geometry = {
   name: { capTop: 929, size: 79.4 },
   support: { capTop: 1072, size: 39 },
   salary: { capTop: 1142, size: 66.4 },
+  partGap: 32,
+  lineGap: 47,
   card: { x: 105, y: 1263, w: 870, h: 290 },
   band: { y: 1347, h: 127 },
   title: { capTop: 1283, size: 54.7 },
@@ -149,21 +171,22 @@ export function geometryOf(size: { readonly w: number; readonly h: number }): Ge
 /** The panel's side margin for every text, and the card's inner margin for its words. */
 export const TEXT_MARGIN = 60;
 const CARD_PADDING = 48;
+const CARD_RADIUS = 39;
 /** The smallest a card's line shrinks to before it wraps instead. */
 const FIT_FLOOR = 0.7;
-/**
- * The least room between one line of the head and the top of the capitals under it. The
- * reference leaves 17 to 67 px; a line that wrapped pushes the next one down to this.
- */
-const LINE_GAP = 14;
 /** The least room between the head's last line and the card, the reference's (56 to 57 px). */
 const HEAD_GAP = 56;
-/** The least room between the proof and the logo, the reference's feed post (42 px). */
+/** The least room between the note and the logo, the reference's feed post (42 px). */
 const PROOF_GAP = 42;
 /** The panel never rises above this share of its reference top; past it the head overflows. */
 const PANEL_RISE_FLOOR = 0.5;
 /** The photograph's stand-in when the brief names none. */
 const NO_PHOTO = '#c9ccd2';
+/** A base-level part before the main one is tracked out, in em: `C O N C U R S O`. */
+const TRACKING = 0.8;
+/** The divider's three dots: their diameter and the room between them, in px. */
+const DOT = 12;
+const DOT_GAP = 10;
 
 /* --------------------------------------------------------------------- the brief -- */
 
@@ -175,55 +198,12 @@ export function wordsOf(context: TemplateContext, name: string): RichText {
   return value?.kind === 'rich-text' ? value.text : EMPTY;
 }
 
-/**
- * A label as the brief may write it, accents, case and the trailing colon `labelOf` keeps
- * aside: `Salário:` and `salario` agree.
- */
-function keyOf(label: RichText): string {
-  return plain(label)
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .replace(/:\s*$/u, '')
-    .trim()
-    .toLowerCase();
-}
-
-/** A block's lines read as the lines with no label, in order, and the labelled ones by label. */
-export interface Fields {
-  readonly unlabelled: readonly RichText[];
-  readonly labelled: ReadonlyMap<string, readonly RichText[]>;
-}
-
-export function fieldsOf(text: RichText): Fields {
-  const unlabelled: RichText[] = [];
-  const labelled = new Map<string, RichText[]>();
-  for (const line of lines(text)) {
-    if (plain(line).trim() === '') continue;
-    const { label, text: value } = labelOf(line);
-    if (label === undefined) {
-      unlabelled.push(line);
-      continue;
-    }
-    const key = keyOf(label);
-    labelled.set(key, [...(labelled.get(key) ?? []), value]);
-  }
-  return { unlabelled, labelled };
-}
-
-function first(fields: Fields, ...keys: string[]): RichText | undefined {
-  for (const key of keys) {
-    const found = fields.labelled.get(key)?.[0];
-    if (found !== undefined) return found;
-  }
-  return undefined;
-}
-
 /** Lines joined into one text, each on its own line. */
 function joined(parts: readonly RichText[]): RichText {
   return parts.flatMap((part, index): Inline[] => {
     if (index === 0) return [...part];
-    const at = part[0]?.range.start ?? 0;
-    return [{ kind: 'break', range: { start: at, end: at } }, ...part];
+    const start = part[0]?.range.start ?? 0;
+    return [{ kind: 'break', range: { start, end: start } }, ...part];
   });
 }
 
@@ -248,23 +228,21 @@ export function upper(text: RichText): RichText {
 export const build: TemplateBuild = (context: TemplateContext) => {
   const ink: Ink = (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
   const geometry = geometryOf(context.size);
-  const exam = fieldsOf(wordsOf(context, 'concurso'));
-  const version = fieldsOf(wordsOf(context, 'versao'));
 
-  // Laid out from the bottom up, because the logo is the one thing that never moves: the proof
-  // sits above the logo, the card above the proof, and the head above the card. Each starts at
+  // Laid out from the bottom up, because the logo is the one thing that never moves: the note
+  // sits above the logo, the card above the note, and the head above the card. Each starts at
   // the reference's place and rises only as far as the words under it grew.
-  const proofWords = first(exam, 'aprovacao');
-  const proof =
-    proofWords === undefined
+  const noteWords = wordsOf(context, 'nota');
+  const note =
+    plain(noteWords).trim() === ''
       ? undefined
-      : centredBlock(context, 'aprovacao', proofWords, geometry.proof, LIGHT, ink('ink'));
-  const proofLift = Math.max(0, (proof?.bottom ?? 0) + PROOF_GAP - geometry.logo.top);
+      : centredBlock(context, 'nota', noteWords, geometry.proof, LIGHT, ink('ink'));
+  const noteLift = Math.max(0, (note?.bottom ?? 0) + PROOF_GAP - geometry.logo.top);
 
-  const offer = cartao(context, ink, geometry, version);
-  const cardTop = geometry.card.y - offer.growth - proofLift;
+  const offer = cartao(context, ink, geometry, wordsOf(context, 'apelo'));
+  const cardTop = offer.top - noteLift;
 
-  const head = vitrine(context, ink, geometry, exam);
+  const head = vitrine(context, ink, geometry, wordsOf(context, 'titulo'));
   const wanted = Math.max(0, head.bottom + HEAD_GAP - cardTop);
   // The panel rises over the photograph to make room, down to a floor that keeps the photograph.
   const headLift = Math.min(wanted, geometry.panelTop * (1 - PANEL_RISE_FLOOR));
@@ -288,8 +266,8 @@ export const build: TemplateBuild = (context: TemplateContext) => {
         transform: { y: panelTop },
       }),
       lifted('cabeca', head.nodes, headLift),
-      lifted('oferta', offer.nodes, proofLift),
-      ...(proof === undefined ? [] : [lifted('prova', [proof.node], proofLift)]),
+      lifted('oferta', offer.nodes, noteLift),
+      ...(note === undefined ? [] : [lifted('nota', [note.node], noteLift)]),
       at((context.size.w - logo.width) / 2, geometry.logo.top, logo),
     ],
   });
@@ -303,11 +281,11 @@ function lifted(name: string, nodes: readonly NodeDraft[], lift: number): NodeDr
 /** The head's photograph, filling the frame's width down to below the panel's corners. */
 function photo(context: TemplateContext, geometry: Geometry): NodeDraft {
   const size = { w: context.size.w, h: geometry.panelTop + geometry.panelRadius };
-  const value = context.slots['foto']?.value;
+  const value = context.slots['imagem']?.value;
   if (value?.kind === 'image') {
-    return image({ name: 'foto', asset: value.asset, size, fit: 'cover' });
+    return image({ name: 'imagem', asset: value.asset, size, fit: 'cover' });
   }
-  return rect({ name: 'foto', size, fill: solid(NO_PHOTO) });
+  return rect({ name: 'imagem', size, fill: solid(NO_PHOTO) });
 }
 
 /* ------------------------------------------------------------------- vitrine (head) -- */
@@ -319,88 +297,103 @@ interface Head {
 }
 
 /**
- * The status line, the exam's name, the supporting lines and the salary, centred.
- *
- * Lines with no label are, in order, the status line, the exam's name and supporting lines.
- * `Vagas:` and `Banca:` share one supporting line, with their labels; `Salário:` is the
- * salary line, drawn without its label; `Aprovação:` is drawn under the card.
+ * The head: `::titulo`'s lines, ranked by their marks and stacked, from the top of the
+ * reference's first line down. A line that wraps pushes the rest down; the build lifts the
+ * panel when the stack reaches the card.
  */
-function vitrine(context: TemplateContext, ink: Ink, geometry: Geometry, exam: Fields): Head {
-  const [kicker, name, ...support] = exam.unlabelled;
-  const facts = ['vagas', 'banca'].flatMap((key) =>
-    (exam.labelled.get(key) ?? []).map((value) => labelledLine(key, value)),
+function vitrine(context: TemplateContext, ink: Ink, geometry: Geometry, titulo: RichText): Head {
+  const width = context.size.w - 2 * TEXT_MARGIN;
+  const stacked = levelStack(
+    levelsOf(titulo),
+    {
+      name: 'titulo',
+      look: (part) => lookOf(part, geometry, ink),
+      gap: geometry.partGap,
+      lineGap: geometry.lineGap,
+      divider: () => dots(ink('ink')),
+    },
+    width,
+    context.measure,
   );
-  const supportText = joined([...support, ...(facts.length === 0 ? [] : [sideBySide(facts)])]);
-  const salary = first(exam, 'salario');
-
-  const nodes: NodeDraft[] = [];
-  let bottom = 0;
-  // Each line keeps the reference's place unless the one above wrapped down to it.
-  const place = (
-    slot: string,
-    words: RichText | undefined,
-    spot: Spot,
-    weight: number,
-    color: string,
-  ): void => {
-    if (words === undefined || plain(words).trim() === '') return;
-    const capTop = bottom === 0 ? spot.capTop : Math.max(spot.capTop, bottom + LINE_GAP);
-    const placed = centredBlock(context, slot, words, { ...spot, capTop }, weight, color);
-    nodes.push(placed.node);
-    bottom = placed.bottom;
-  };
-
-  place('sobretitulo', kicker, geometry.kicker, MEDIUM, ink('ink'));
-  place(
-    'concurso',
-    name === undefined ? undefined : upper(name),
-    geometry.name,
-    BLACK,
-    ink('accent'),
-  );
-  place('apoio', supportText, geometry.support, LIGHT, ink('ink'));
-  place('salario', salary, geometry.salary, MEDIUM, ink('ink'));
-
-  return { nodes, bottom };
+  if (stacked.height === 0) return { nodes: [], bottom: 0 };
+  const top = geometry.kicker.capTop - capOffset(geometry.kicker.size);
+  return { nodes: [at(TEXT_MARGIN, top, stacked)], bottom: top + stacked.height };
 }
 
-/** Facts on one line, a middle dot between them: `Vagas: 40 · Banca: Ômegas`. */
-function sideBySide(facts: readonly RichText[]): RichText {
-  return facts.flatMap((fact, index): Inline[] => {
-    if (index === 0) return [...fact];
-    const at = fact[0]?.range.start ?? 0;
-    return [{ kind: 'text', value: ' · ', range: { start: at, end: at } }, ...fact];
+/**
+ * What each level of the head looks like: `#` the exam's name, in capitals and the accent;
+ * `##` before it the status line, after it the salary; `###` a supporting line in Medium; the
+ * base level a supporting line, or, before the name, a tracked label in the accent.
+ */
+function lookOf(part: LevelPart, geometry: Geometry, ink: Ink): LevelLook {
+  const look = (spot: Spot, weight: number, color: string): LevelLook => ({
+    style: styleOf(spot.size, weight, color),
+    lineHeight: LINE_HEIGHT,
   });
+  switch (part.level) {
+    case 1:
+      return { ...look(geometry.name, BLACK, ink('accent')), transform: upper };
+    case 2:
+      return part.position === 'before'
+        ? look(geometry.kicker, MEDIUM, ink('ink'))
+        : look(geometry.salary, MEDIUM, ink('ink'));
+    case 3:
+      return look(geometry.support, MEDIUM, ink('ink'));
+    default:
+      return part.position === 'before'
+        ? {
+            ...look(geometry.support, LIGHT, ink('accent')),
+            letterSpacing: geometry.support.size * TRACKING,
+            transform: upper,
+          }
+        : look(geometry.support, LIGHT, ink('ink'));
+  }
 }
 
-/** `Vagas: 40` back as one line, its label written as the house writes it. */
-function labelledLine(key: string, value: RichText): RichText {
-  const label = key === 'vagas' ? 'Vagas' : 'Banca';
-  const start = value[0]?.range.start ?? 0;
-  return [{ kind: 'text', value: `${label}: `, range: { start, end: start } }, ...value];
+/** The divider: three dots, centred. */
+function dots(color: string): Block {
+  const dot = (): Block =>
+    block(
+      DOT,
+      DOT,
+      rect({ name: 'ponto', size: { w: DOT, h: DOT }, radius: DOT / 2, fill: solid(color) }),
+    );
+  return row({ name: 'divisor', items: [dot(), dot(), dot()], gap: DOT_GAP });
 }
 
 /* ------------------------------------------------------------------- cartao (offer) -- */
 
-/**
- * The offer as a card: `Oferta:` its title, `Desconto:` (or `Destaque:`) on the band in the
- * accent, `Prazo:`, `Garantia:` or `Cupom:` its foot. A line the card does not hold is not
- * drawn. The title and the band's words shrink to one line before they wrap.
- */
-function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, version: Fields): Offer {
-  const { card, band } = geometry;
-  const inner = card.w - 2 * CARD_PADDING;
-  const words: NodeDraft[] = [];
+interface Offer {
+  readonly nodes: NodeDraft[];
+  /** Where the card's top edge sits; the reference's when there is no card. */
+  readonly top: number;
+}
 
-  // A title that wraps even at the floor grows the card upward: its last line keeps the
-  // reference's place above the band, and the lines before it take room from the head.
+/**
+ * The offer as a card shaped by `::apelo`'s parts: the main part is the band, the parts before
+ * it the title, the parts after it the foot (later lines join the foot). A segment absent
+ * leaves the band at that edge, and the band takes that edge's corners. A title that wraps
+ * grows the card upward; the band never moves. No `::apelo`, no card.
+ */
+function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, apelo: RichText): Offer {
+  const { card, band } = geometry;
+  const parts = levelsOf(apelo).flatMap((item) => (item.kind === 'line' ? item.parts : []));
+  const main = parts.findIndex((part) => part.position === 'main');
+  if (main < 0) return { nodes: [], top: card.y };
+
+  const inner = card.w - 2 * CARD_PADDING;
+  const titleWords = joined(parts.slice(0, main).map((part) => part.words));
+  const footWords = joined(parts.slice(main + 1).map((part) => part.words));
+  const hasTitle = plain(titleWords).trim() !== '';
+  const hasFoot = plain(footWords).trim() !== '';
+
+  const words: NodeDraft[] = [];
   let growth = 0;
-  const title = first(version, 'oferta');
-  if (title !== undefined) {
+  if (hasTitle) {
     const placed = fitted(
       context,
       'oferta',
-      title,
+      titleWords,
       geometry.title,
       LIGHT,
       ink('ink'),
@@ -411,36 +404,39 @@ function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, version:
     growth = placed.extra;
     words.push(placed.node);
   }
-  const bandWords = first(version, 'desconto', 'destaque');
-  if (bandWords !== undefined) {
-    const placed = fitted(
+  words.push(
+    fitted(
       context,
-      'desconto',
-      bandWords,
+      'faixa-texto',
+      parts[main]!.words,
       geometry.bandText,
       BLACK,
       ink('on-accent'),
       card,
       inner,
+    ).node,
+  );
+  if (hasFoot) {
+    words.push(
+      fitted(context, 'rodape', footWords, geometry.foot, LIGHT, ink('ink'), card, inner).node,
     );
-    words.push(placed.node);
-  }
-  const foot = first(version, 'prazo', 'garantia', 'cupom');
-  if (foot !== undefined) {
-    words.push(fitted(context, 'rodape', foot, geometry.foot, LIGHT, ink('ink'), card, inner).node);
   }
 
+  const top = hasTitle ? card.y - growth : band.y;
+  const bottom = hasFoot ? card.y + card.h : band.y + band.h;
+  const corner = (rounded: boolean) => (rounded ? CARD_RADIUS : 0);
   const nodes: NodeDraft[] = [
     rect({
       name: 'cartao',
-      size: { w: card.w, h: card.h + growth },
-      radius: 39,
+      size: { w: card.w, h: bottom - top },
+      radius: CARD_RADIUS,
       stroke: { paint: solid(ink('accent')), width: 2, align: 'inside' },
-      transform: { x: card.x, y: card.y - growth },
+      transform: { x: card.x, y: top },
     }),
     rect({
       name: 'faixa',
       size: { w: card.w, h: band.h },
+      radius: [corner(!hasTitle), corner(!hasTitle), corner(!hasFoot), corner(!hasFoot)],
       fill: solid(ink('accent')),
       effects: [
         { kind: 'shadow', x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } },
@@ -449,13 +445,7 @@ function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, version:
     }),
     ...words,
   ];
-  return { nodes, growth };
-}
-
-interface Offer {
-  readonly nodes: NodeDraft[];
-  /** How much taller than the reference's card the title made it, all of it above. */
-  readonly growth: number;
+  return { nodes, top };
 }
 
 /* ------------------------------------------------------------------ placing words -- */
@@ -474,7 +464,7 @@ function centredBlock(
   color: string,
 ): { node: NodeDraft; bottom: number } {
   const width = context.size.w - 2 * TEXT_MARGIN;
-  const block = grownTextBlock(
+  const shown = grownTextBlock(
     words,
     width,
     0,
@@ -483,12 +473,13 @@ function centredBlock(
     { name, align: 'center', lineHeight: LINE_HEIGHT, overflow: 'grow' },
   );
   const top = spot.capTop - capOffset(spot.size);
-  return { node: at(TEXT_MARGIN, top, block), bottom: top + block.height };
+  return { node: at(TEXT_MARGIN, top, shown), bottom: top + shown.height };
 }
 
 /**
  * Words centred in the card, shrunk to one line when they are wider than its inside, and
- * wrapped past the floor. `extra` is how much taller than one line they came out.
+ * wrapped past the floor. `extra` is how much taller than one line they came out; growing up,
+ * the last line keeps the reference's place and the lines before it rise.
  */
 function fitted(
   context: TemplateContext,
@@ -502,7 +493,7 @@ function fitted(
   growUp = false,
 ): { node: NodeDraft; extra: number } {
   const size = fitSize(words, spot.size, weight, color, inner, context.measure);
-  const block = grownTextBlock(words, inner, 0, styleOf(size, weight, color), context.measure, {
+  const shown = grownTextBlock(words, inner, 0, styleOf(size, weight, color), context.measure, {
     name,
     align: 'center',
     lineHeight: LINE_HEIGHT,
@@ -510,10 +501,9 @@ function fitted(
   });
   // A shrunk line keeps the centre of the reference's line, not its top.
   const capTop = spot.capTop + (CAP_HEIGHT * (spot.size - size)) / 2;
-  const extra = Math.max(0, block.height - size * LINE_HEIGHT);
-  // Growing up, the last line takes the reference's place and the lines before it rise.
+  const extra = Math.max(0, shown.height - size * LINE_HEIGHT);
   const top = capTop - capOffset(size) - (growUp ? extra : 0);
-  return { node: at(card.x + CARD_PADDING, top, block), extra };
+  return { node: at(card.x + CARD_PADDING, top, shown), extra };
 }
 
 /** The size at which the words fit one line of `width`, never below the floor. */
