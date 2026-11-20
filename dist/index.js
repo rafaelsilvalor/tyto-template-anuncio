@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.54.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-5L2PHC5K.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.55.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-IT6P3KDS.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -19840,6 +19840,22 @@ var diagnosticCodes = {
     spec: "docs/adr/0117-a-plugin-source-is-fetched-once-and-read-from-a-cache.md",
     fatal: false,
     fatality: "One image the brief named, exactly as a missing file is: the slot stays unset and the rest of the brief renders."
+  },
+  E_ASSET_DECODER_MISSING: {
+    severity: "error",
+    summary: "The brief names a file of a kind no picture is drawn from, and no installed plugin decodes it.",
+    template: "Asset '{path}' is a '{extension}' file, which Tyto cannot draw by itself; install a plugin that decodes '{extension}' files.",
+    spec: "docs/adr/0223-a-plugin-decodes-a-file-kind-into-an-image-through-a-one-call-token.md",
+    fatal: false,
+    fatality: "One image the brief named, exactly as a missing file is: the slot stays unset and the rest of the brief renders."
+  },
+  E_ASSET_DECODE_FAILED: {
+    severity: "error",
+    summary: "The plugin that decodes a file kind could not turn the file the brief named into a picture.",
+    template: "Asset '{path}' could not be decoded by plugin '{plugin}': {problem}.",
+    spec: "docs/adr/0223-a-plugin-decodes-a-file-kind-into-an-image-through-a-one-call-token.md",
+    fatal: false,
+    fatality: "One image the brief named, never drawn blank: the slot stays unset as for a missing file and the rest of the brief renders."
   },
   E_UNSUPPORTED_CSS: {
     severity: "error",
@@ -22258,7 +22274,7 @@ function colorValue(context, name, fallback) {
   return typeof value === "string" ? value : fallback;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.54.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.55.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -22360,7 +22376,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.7/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.8/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22397,7 +22413,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.14.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.15.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -22535,6 +22551,79 @@ function mark(shape, height, fill, name) {
 function reportOverflow(report, bottom, limit) {
   const overflow = bottom - limit;
   if (overflow > 0) report({ code: "W_TEMPLATE_OVERFLOW", overflow });
+}
+function naturalCardHeight(segments) {
+  return segments.reduce((sum, segment) => sum + heightOf(segment), 0);
+}
+function card(segments, style2, report) {
+  if (segments.length === 0) {
+    return { ...block(0, 0, group({ name: style2.name, children: [] })), segments: [] };
+  }
+  const natural = naturalCardHeight(segments);
+  const height = style2.height ?? natural;
+  if (report !== void 0 && style2.height !== void 0) {
+    reportOverflow(report, natural, style2.height);
+  }
+  const room = Math.max(0, height - natural);
+  const roomBefore = segments.length > 1 ? segments.length - 1 : 1;
+  const placed = [];
+  const bands = [];
+  const words = [];
+  let y = 0;
+  for (const [index, segment] of segments.entries()) {
+    if (index === roomBefore) y += room;
+    const own2 = heightOf(segment);
+    placed.push({ kind: segment.kind, top: y, height: own2 });
+    if (segment.kind === "band") {
+      const top = y === 0;
+      const bottom = index === segments.length - 1 && (segments.length > 1 || room === 0);
+      const corner = (rounded) => rounded ? style2.radius : 0;
+      bands.push(
+        rect({
+          name: style2.band.name ?? "band",
+          size: { w: style2.width, h: own2 },
+          radius: [corner(top), corner(top), corner(bottom), corner(bottom)],
+          fill: style2.band.fill,
+          ...style2.band.effects === void 0 ? {} : { effects: style2.band.effects },
+          transform: { y }
+        })
+      );
+    }
+    const x = (style2.width - segment.content.width) / 2;
+    words.push(at(x, y + (own2 - segment.content.height) / 2, segment.content));
+    y += own2;
+  }
+  const outline = rect({
+    name: style2.name,
+    size: { w: style2.width, h: height },
+    radius: style2.radius,
+    ...style2.fill === void 0 ? {} : { fill: style2.fill },
+    ...style2.stroke === void 0 ? {} : { stroke: style2.stroke }
+  });
+  const drawn = group({ name: style2.name, children: [outline, ...bands, ...words] });
+  return { ...block(style2.width, height, drawn), segments: placed };
+}
+function bandBottom(drawn) {
+  const band = drawn.segments.find((segment) => segment.kind === "band");
+  return band === void 0 ? void 0 : band.top + band.height;
+}
+function cardSegments(items, draw, minHeight = {}) {
+  const parts = items.flatMap((item) => item.kind === "line" ? item.parts : []);
+  const main = parts.findIndex((part) => part.position === "main");
+  if (main < 0) return [];
+  const groups = [
+    ["title", parts.slice(0, main)],
+    ["band", [parts[main]]],
+    ["foot", parts.slice(main + 1)]
+  ];
+  return groups.filter(([, rolled]) => rolled.length > 0).map(([role, rolled]) => ({
+    kind: role === "band" ? "band" : "plain",
+    content: draw(role, rolled),
+    ...minHeight[role] === void 0 ? {} : { minHeight: minHeight[role] }
+  }));
+}
+function heightOf(segment) {
+  return Math.max(segment.minHeight ?? 0, segment.content.height);
 }
 var FIELD_SEPARATOR = "|";
 function lines(text2) {
@@ -22747,7 +22836,7 @@ function offsetOf(align, width, itemWidth) {
   return 0;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.7/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.8/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22783,7 +22872,7 @@ function drawLogo(kit, height, inks) {
   return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.7/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.8/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -23028,76 +23117,62 @@ function dots(color2) {
   return row({ name: "divisor", items: [dot(), dot(), dot()], gap: DOT_GAP });
 }
 function cartao(context, ink, geometry, apelo) {
-  const { card, band } = geometry;
-  const parts = levelsOf(apelo).flatMap((item) => item.kind === "line" ? item.parts : []);
-  const main = parts.findIndex((part) => part.position === "main");
-  if (main < 0) return { nodes: [], top: card.y };
-  const inner = card.w - 2 * CARD_PADDING;
-  const titleWords = joined(parts.slice(0, main).map((part) => part.words));
-  const footWords = joined(parts.slice(main + 1).map((part) => part.words));
-  const hasTitle = plain(titleWords).trim() !== "";
-  const hasFoot = plain(footWords).trim() !== "";
-  const bandWords = fitted(
-    context,
-    "faixa-texto",
-    parts[main].words,
-    geometry.bandText,
-    BLACK,
-    ink("on-accent"),
-    card,
-    inner,
-    true
-  );
-  const bandGrowth = bandWords.extra;
-  const bandTop = band.y - bandGrowth;
-  const words = [];
-  let growth = 0;
-  if (hasTitle) {
-    const placed = fitted(
-      context,
-      "oferta",
-      titleWords,
-      geometry.title,
-      LIGHT,
-      ink("ink"),
-      card,
-      inner,
-      true,
-      bandGrowth
-    );
-    growth = placed.extra;
-    words.push(placed.node);
-  }
-  words.push(bandWords.node);
-  if (hasFoot) {
-    words.push(
-      fitted(context, "rodape", footWords, geometry.foot, LIGHT, ink("ink"), card, inner).node
-    );
-  }
-  const top = (hasTitle ? card.y - growth : band.y) - bandGrowth;
-  const bottom = hasFoot ? card.y + card.h : band.y + band.h;
-  const corner = (rounded) => rounded ? CARD_RADIUS : 0;
-  const nodes = [
-    rect({
-      name: "cartao",
-      size: { w: card.w, h: bottom - top },
-      radius: CARD_RADIUS,
-      stroke: { paint: solid(ink("accent")), width: 2, align: "inside" },
-      transform: { x: card.x, y: top }
-    }),
-    rect({
+  const { card: card2, band } = geometry;
+  const inner = card2.w - 2 * CARD_PADDING;
+  const segmentOf = (role, parts) => {
+    const words = joined(parts.map((part) => part.words));
+    if (role === "band") {
+      const placed2 = fitted(
+        context,
+        "faixa-texto",
+        words,
+        geometry.bandText,
+        BLACK,
+        ink("on-accent"),
+        card2,
+        inner,
+        true
+      );
+      return segmentBlock(placed2.node, card2, band.y - placed2.extra, band.h + placed2.extra);
+    }
+    if (role === "title") {
+      const placed2 = fitted(
+        context,
+        "oferta",
+        words,
+        geometry.title,
+        LIGHT,
+        ink("ink"),
+        card2,
+        inner,
+        true
+      );
+      return segmentBlock(placed2.node, card2, card2.y - placed2.extra, band.y - card2.y + placed2.extra);
+    }
+    const placed = fitted(context, "rodape", words, geometry.foot, LIGHT, ink("ink"), card2, inner);
+    const footTop = band.y + band.h;
+    return segmentBlock(placed.node, card2, footTop, card2.y + card2.h - footTop);
+  };
+  const segments = cardSegments(levelsOf(apelo), segmentOf);
+  if (segments.length === 0) return { nodes: [], top: card2.y };
+  const drawn = card(segments, {
+    name: "cartao",
+    width: card2.w,
+    radius: CARD_RADIUS,
+    stroke: { paint: solid(ink("accent")), width: 2, align: "inside" },
+    band: {
       name: "faixa",
-      size: { w: card.w, h: band.h + bandGrowth },
-      radius: [corner(!hasTitle), corner(!hasTitle), corner(!hasFoot), corner(!hasFoot)],
       fill: solid(ink("accent")),
       effects: [
         { kind: "shadow", x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } }
-      ],
-      transform: { x: card.x, y: bandTop }
-    }),
-    ...words
-  ];
-  return { nodes, top };
+      ]
+    }
+  });
+  const top = band.y + band.h - bandBottom(drawn);
+  return { nodes: [at(card2.x, top, drawn)], top };
+}
+function segmentBlock(node2, card2, top, height) {
+  return block(card2.w, height, group({ children: [node2], transform: { x: -card2.x, y: -top } }));
 }
 function styleOf(size, weight, color2) {
   return { font: FACE2, size, weight, color: color2 };
@@ -23115,7 +23190,7 @@ function centredBlock(context, name, words, spot, weight, color2) {
   const top = spot.capTop - capOffset(spot.size);
   return { node: at(TEXT_MARGIN, top, shown), bottom: top + shown.height };
 }
-function fitted(context, name, words, spot, weight, color2, card, inner, growUp = false, raise = 0) {
+function fitted(context, name, words, spot, weight, color2, card2, inner, growUp = false, raise = 0) {
   const size = fitSize(words, spot.size, weight, color2, inner, context.measure);
   const shown = grownTextBlock(words, inner, 0, styleOf(size, weight, color2), context.measure, {
     name,
@@ -23126,7 +23201,7 @@ function fitted(context, name, words, spot, weight, color2, card, inner, growUp 
   const capTop = spot.capTop + CAP_HEIGHT * (spot.size - size) / 2;
   const extra = Math.max(0, shown.height - size * LINE_HEIGHT);
   const top = capTop - capOffset(size) - (growUp ? extra : 0) - raise;
-  return { node: at(card.x + CARD_PADDING, top, shown), extra };
+  return { node: at(card2.x + CARD_PADDING, top, shown), extra };
 }
 function fitSize(words, size, weight, color2, width, measure) {
   const natural = naturalWidth(words, styleOf(size, weight, color2), measure);
