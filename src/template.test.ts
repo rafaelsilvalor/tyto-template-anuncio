@@ -1,7 +1,7 @@
 import { noBrandKit, noFiles } from '@tyto/core';
 import { describe, expect, it } from 'vitest';
 
-import { TEXT_MARGIN as MARGIN, build } from './template.js';
+import { GRID, STORY, TEXT_MARGIN as MARGIN, build } from './template.js';
 
 import type {
   Frame,
@@ -293,6 +293,53 @@ describe('the card takes the shape of the apelo’s parts', () => {
     expect(drawn.y).toBeGreaterThanOrEqual(card.y);
     expect(bottomOf(drawn)).toBeLessThanOrEqual(band.y);
     expect(reports.filter((report) => report.code === 'W_TEMPLATE_OVERFLOW')).toEqual([]);
+  });
+});
+
+describe.each(['grid', 'story'] as const)('a band whose words wrap, in the %s format', (format) => {
+  const apelo = 'Comece antes do edital | # Prepare-se com quem aprova mais gente em todo o país';
+  const plain = render({ titulo: HEAD, apelo: OFFER }, format).frame;
+  const { frame, reports } = render({ titulo: HEAD, apelo }, format);
+  const band = rectNamed(frame, 'faixa')!;
+  const plainBand = rectNamed(plain, 'faixa')!;
+  const words = find(frame, 'Prepare-se')!;
+
+  it('wraps the band’s words at the shrink floor', () => {
+    expect(layOut(words.node).length).toBeGreaterThan(1);
+  });
+
+  it('grows the band upward by the extra lines, its bottom edge where it was', () => {
+    expect(band.h).toBeGreaterThan(plainBand.h);
+    expect(band.y + band.h).toBe(plainBand.y + plainBand.h);
+  });
+
+  it('keeps every band word inside the band, and the title above it', () => {
+    expect(words.y).toBeGreaterThanOrEqual(band.y);
+    expect(bottomOf(words)).toBeLessThanOrEqual(band.y + band.h);
+    expect(bottomOf(find(frame, 'Comece antes')!)).toBeLessThanOrEqual(band.y);
+    expect(rectNamed(frame, 'cartao')!.y).toBeLessThan(rectNamed(plain, 'cartao')!.y);
+  });
+
+  it('reports no overflow', () => {
+    expect(reports.filter((report) => report.code === 'W_TEMPLATE_OVERFLOW')).toEqual([]);
+  });
+});
+
+describe.each([
+  ['grid', GRID],
+  ['story', STORY],
+] as const)('the head’s room per pair of lines, in the %s format', (format, geometry) => {
+  const { frame } = render({ titulo: HEAD, apelo: OFFER }, format);
+  const name = find(frame, 'QC REGULA')!;
+  const support = find(frame, 'Vagas para')!;
+  const salary = find(frame, 'R$ 9,2 mil')!;
+
+  it('leaves the name’s own room under the # line', () => {
+    expect(support.y - bottomOf(name)).toBeCloseTo(geometry.nameGap, 5);
+  });
+
+  it('leaves the smaller room between the supporting line and the salary', () => {
+    expect(salary.y - bottomOf(support)).toBeCloseTo(geometry.lineGap, 5);
   });
 });
 

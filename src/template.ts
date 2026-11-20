@@ -47,7 +47,14 @@ import {
 
 import type { Inline, RichText, TemplateBuild, TemplateContext } from '@tyto/core';
 import type { NodeDraft } from '@tyto/core/template';
-import type { Block, LevelLook, LevelPart, Measure, TextStyle } from '@tyto/template-kit';
+import type {
+  Block,
+  LevelItem,
+  LevelLook,
+  LevelPart,
+  Measure,
+  TextStyle,
+} from '@tyto/template-kit';
 
 /* ------------------------------------------------------------------------- the tokens -- */
 
@@ -108,8 +115,11 @@ interface Geometry {
   readonly support: Spot;
   /** `##` after the main part: the salary line. */
   readonly salary: Spot;
-  /** Between two parts of one line, and between two lines, box to box. */
+  /** Between two parts of one line, box to box. */
   readonly partGap: number;
+  /** Under the line holding `#`, the exam's name, box to box. */
+  readonly nameGap: number;
+  /** Between any other two lines, or a line and the divider, box to box. */
   readonly lineGap: number;
   /** The card's box; its band spans the card's width. */
   readonly card: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
@@ -122,9 +132,9 @@ interface Geometry {
 }
 
 /**
- * The feed post, board `1350_v1` of the reference. The two gaps are the reference's room
- * between boxes: status to name 28.6 px; name to supporting line 35.6 and supporting line to
- * salary 15.5, which one line gap averages.
+ * The feed post, board `1350_v1` of the reference. The gaps are the reference's room between
+ * boxes: status to name 28.6 px; name to supporting line 35.6; supporting line to salary 15.5,
+ * which two supporting lines in a row keep too, so they read as one group (TYTO-811).
  */
 export const GRID: Geometry = {
   panelTop: 486,
@@ -134,7 +144,8 @@ export const GRID: Geometry = {
   support: { capTop: 711, size: 39 },
   salary: { capTop: 766, size: 52 },
   partGap: 29,
-  lineGap: 25,
+  nameGap: 35.6,
+  lineGap: 15.5,
   card: { x: 142, y: 872, w: 796, h: 266 },
   band: { y: 948, h: 117 },
   title: { capTop: 891, size: 50 },
@@ -153,7 +164,8 @@ export const STORY: Geometry = {
   support: { capTop: 1072, size: 39 },
   salary: { capTop: 1142, size: 66.4 },
   partGap: 32,
-  lineGap: 47,
+  nameGap: 65,
+  lineGap: 30,
   card: { x: 105, y: 1263, w: 870, h: 290 },
   band: { y: 1347, h: 127 },
   title: { capTop: 1283, size: 54.7 },
@@ -309,7 +321,7 @@ function vitrine(context: TemplateContext, ink: Ink, geometry: Geometry, titulo:
       name: 'titulo',
       look: (part) => lookOf(part, geometry, ink),
       gap: geometry.partGap,
-      lineGap: geometry.lineGap,
+      lineGap: (above) => lineGapOf(above, geometry),
       divider: () => dots(ink('ink')),
     },
     width,
@@ -318,6 +330,12 @@ function vitrine(context: TemplateContext, ink: Ink, geometry: Geometry, titulo:
   if (stacked.height === 0) return { nodes: [], bottom: 0 };
   const top = geometry.kicker.capTop - capOffset(geometry.kicker.size);
   return { nodes: [at(TEXT_MARGIN, top, stacked)], bottom: top + stacked.height };
+}
+
+/** The room under a line: the name's own, larger, or the one every other pair shares. */
+export function lineGapOf(above: LevelItem, geometry: Geometry): number {
+  const holdsName = above.kind === 'line' && above.parts.some((part) => part.level === 1);
+  return holdsName ? geometry.nameGap : geometry.lineGap;
 }
 
 /**
@@ -373,7 +391,10 @@ interface Offer {
  * The offer as a card shaped by `::apelo`'s parts: the main part is the band, the parts before
  * it the title, the parts after it the foot (later lines join the foot). A segment absent
  * leaves the band at that edge, and the band takes that edge's corners. A title that wraps
- * grows the card upward; the band never moves. No `::apelo`, no card.
+ * grows the card upward. Band words that wrap past the shrink floor grow the band upward by
+ * their extra lines, words kept centred in it, and the title and the card's top rise with it;
+ * the band's bottom edge, the foot and everything under them stay (TYTO-811). No `::apelo`,
+ * no card.
  */
 function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, apelo: RichText): Offer {
   const { card, band } = geometry;
@@ -386,6 +407,20 @@ function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, apelo: R
   const footWords = joined(parts.slice(main + 1).map((part) => part.words));
   const hasTitle = plain(titleWords).trim() !== '';
   const hasFoot = plain(footWords).trim() !== '';
+
+  const bandWords = fitted(
+    context,
+    'faixa-texto',
+    parts[main]!.words,
+    geometry.bandText,
+    BLACK,
+    ink('on-accent'),
+    card,
+    inner,
+    true,
+  );
+  const bandGrowth = bandWords.extra;
+  const bandTop = band.y - bandGrowth;
 
   const words: NodeDraft[] = [];
   let growth = 0;
@@ -400,29 +435,19 @@ function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, apelo: R
       card,
       inner,
       true,
+      bandGrowth,
     );
     growth = placed.extra;
     words.push(placed.node);
   }
-  words.push(
-    fitted(
-      context,
-      'faixa-texto',
-      parts[main]!.words,
-      geometry.bandText,
-      BLACK,
-      ink('on-accent'),
-      card,
-      inner,
-    ).node,
-  );
+  words.push(bandWords.node);
   if (hasFoot) {
     words.push(
       fitted(context, 'rodape', footWords, geometry.foot, LIGHT, ink('ink'), card, inner).node,
     );
   }
 
-  const top = hasTitle ? card.y - growth : band.y;
+  const top = (hasTitle ? card.y - growth : band.y) - bandGrowth;
   const bottom = hasFoot ? card.y + card.h : band.y + band.h;
   const corner = (rounded: boolean) => (rounded ? CARD_RADIUS : 0);
   const nodes: NodeDraft[] = [
@@ -435,13 +460,13 @@ function cartao(context: TemplateContext, ink: Ink, geometry: Geometry, apelo: R
     }),
     rect({
       name: 'faixa',
-      size: { w: card.w, h: band.h },
+      size: { w: card.w, h: band.h + bandGrowth },
       radius: [corner(!hasTitle), corner(!hasTitle), corner(!hasFoot), corner(!hasFoot)],
       fill: solid(ink('accent')),
       effects: [
         { kind: 'shadow', x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } },
       ],
-      transform: { x: card.x, y: band.y },
+      transform: { x: card.x, y: bandTop },
     }),
     ...words,
   ];
@@ -491,6 +516,8 @@ function fitted(
   card: Geometry['card'],
   inner: number,
   growUp = false,
+  /** How far everything under these words grew upward: the words rise by it too. */
+  raise = 0,
 ): { node: NodeDraft; extra: number } {
   const size = fitSize(words, spot.size, weight, color, inner, context.measure);
   const shown = grownTextBlock(words, inner, 0, styleOf(size, weight, color), context.measure, {
@@ -502,7 +529,7 @@ function fitted(
   // A shrunk line keeps the centre of the reference's line, not its top.
   const capTop = spot.capTop + (CAP_HEIGHT * (spot.size - size)) / 2;
   const extra = Math.max(0, shown.height - size * LINE_HEIGHT);
-  const top = capTop - capOffset(size) - (growUp ? extra : 0);
+  const top = capTop - capOffset(size) - (growUp ? extra : 0) - raise;
   return { node: at(card.x + CARD_PADDING, top, shown), extra };
 }
 
