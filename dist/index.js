@@ -22360,7 +22360,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.6/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.7/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22397,7 +22397,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.13.1/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.14.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function shifted(draft, dx, dy) {
   const transform2 = {
     ...draft.transform,
@@ -22695,11 +22695,13 @@ function levelStack(items, style2, width, measure) {
   const drawn = [];
   for (const item of items) {
     if (item.kind === "divider") {
-      if (style2.divider !== void 0) drawn.push({ kind: "divider", item: style2.divider(width) });
+      if (style2.divider !== void 0) {
+        drawn.push({ kind: "divider", item, drawing: style2.divider(width) });
+      }
       continue;
     }
     const rows = item.parts.map((part, index) => rowOf(part, index, style2, width, measure, align));
-    drawn.push({ kind: "line", rows });
+    drawn.push({ kind: "line", item, rows });
   }
   const kept = drawn.filter(
     (each, index) => each.kind !== "divider" || drawn.slice(0, index).some((before) => before.kind === "line") && drawn.slice(index + 1).some((after) => after.kind === "line")
@@ -22707,16 +22709,25 @@ function levelStack(items, style2, width, measure) {
   let y = 0;
   const children = [];
   for (const [index, each] of kept.entries()) {
-    if (index > 0) y += lineGap;
-    const pieces = each.kind === "line" ? each.rows : [each.item];
-    for (const [row2, piece] of pieces.entries()) {
-      if (row2 > 0) y += style2.gap;
+    if (index > 0) y += spaceOf(lineGap, kept[index - 1].item, each.item);
+    if (each.kind === "divider") {
+      children.push(at(offsetOf(align, width, each.drawing.width), y, each.drawing));
+      y += each.drawing.height;
+      continue;
+    }
+    for (const [row2, piece] of each.rows.entries()) {
+      if (row2 > 0) {
+        y += spaceOf(style2.gap, each.item.parts[row2 - 1], each.item.parts[row2]);
+      }
       children.push(at(offsetOf(align, width, piece.width), y, piece));
       y += piece.height;
     }
   }
   if (children.length === 0) return stack({ name: style2.name, items: [] });
   return block(width, y, group({ name: style2.name, children }));
+}
+function spaceOf(gap, above, below) {
+  return typeof gap === "number" ? gap : gap(above, below);
 }
 function rowOf(part, index, style2, width, measure, align) {
   const look = style2.look(part);
@@ -22736,7 +22747,7 @@ function offsetOf(align, width, itemWidth) {
   return 0;
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.6/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.7/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -22772,7 +22783,7 @@ function drawLogo(kit, height, inks) {
   return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.6/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.7/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -22852,7 +22863,8 @@ var GRID = {
   support: { capTop: 711, size: 39 },
   salary: { capTop: 766, size: 52 },
   partGap: 29,
-  lineGap: 25,
+  nameGap: 35.6,
+  lineGap: 15.5,
   card: { x: 142, y: 872, w: 796, h: 266 },
   band: { y: 948, h: 117 },
   title: { capTop: 891, size: 50 },
@@ -22869,7 +22881,8 @@ var STORY = {
   support: { capTop: 1072, size: 39 },
   salary: { capTop: 1142, size: 66.4 },
   partGap: 32,
-  lineGap: 47,
+  nameGap: 65,
+  lineGap: 30,
   card: { x: 105, y: 1263, w: 870, h: 290 },
   band: { y: 1347, h: 127 },
   title: { capTop: 1283, size: 54.7 },
@@ -22972,7 +22985,7 @@ function vitrine(context, ink, geometry, titulo) {
       name: "titulo",
       look: (part) => lookOf(part, geometry, ink),
       gap: geometry.partGap,
-      lineGap: geometry.lineGap,
+      lineGap: (above) => lineGapOf(above, geometry),
       divider: () => dots(ink("ink"))
     },
     width,
@@ -22981,6 +22994,10 @@ function vitrine(context, ink, geometry, titulo) {
   if (stacked.height === 0) return { nodes: [], bottom: 0 };
   const top = geometry.kicker.capTop - capOffset(geometry.kicker.size);
   return { nodes: [at(TEXT_MARGIN, top, stacked)], bottom: top + stacked.height };
+}
+function lineGapOf(above, geometry) {
+  const holdsName = above.kind === "line" && above.parts.some((part) => part.level === 1);
+  return holdsName ? geometry.nameGap : geometry.lineGap;
 }
 function lookOf(part, geometry, ink) {
   const look = (spot, weight, color2) => ({
@@ -23020,6 +23037,19 @@ function cartao(context, ink, geometry, apelo) {
   const footWords = joined(parts.slice(main + 1).map((part) => part.words));
   const hasTitle = plain(titleWords).trim() !== "";
   const hasFoot = plain(footWords).trim() !== "";
+  const bandWords = fitted(
+    context,
+    "faixa-texto",
+    parts[main].words,
+    geometry.bandText,
+    BLACK,
+    ink("on-accent"),
+    card,
+    inner,
+    true
+  );
+  const bandGrowth = bandWords.extra;
+  const bandTop = band.y - bandGrowth;
   const words = [];
   let growth = 0;
   if (hasTitle) {
@@ -23032,29 +23062,19 @@ function cartao(context, ink, geometry, apelo) {
       ink("ink"),
       card,
       inner,
-      true
+      true,
+      bandGrowth
     );
     growth = placed.extra;
     words.push(placed.node);
   }
-  words.push(
-    fitted(
-      context,
-      "faixa-texto",
-      parts[main].words,
-      geometry.bandText,
-      BLACK,
-      ink("on-accent"),
-      card,
-      inner
-    ).node
-  );
+  words.push(bandWords.node);
   if (hasFoot) {
     words.push(
       fitted(context, "rodape", footWords, geometry.foot, LIGHT, ink("ink"), card, inner).node
     );
   }
-  const top = hasTitle ? card.y - growth : band.y;
+  const top = (hasTitle ? card.y - growth : band.y) - bandGrowth;
   const bottom = hasFoot ? card.y + card.h : band.y + band.h;
   const corner = (rounded) => rounded ? CARD_RADIUS : 0;
   const nodes = [
@@ -23067,13 +23087,13 @@ function cartao(context, ink, geometry, apelo) {
     }),
     rect({
       name: "faixa",
-      size: { w: card.w, h: band.h },
+      size: { w: card.w, h: band.h + bandGrowth },
       radius: [corner(!hasTitle), corner(!hasTitle), corner(!hasFoot), corner(!hasFoot)],
       fill: solid(ink("accent")),
       effects: [
         { kind: "shadow", x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } }
       ],
-      transform: { x: card.x, y: band.y }
+      transform: { x: card.x, y: bandTop }
     }),
     ...words
   ];
@@ -23095,7 +23115,7 @@ function centredBlock(context, name, words, spot, weight, color2) {
   const top = spot.capTop - capOffset(spot.size);
   return { node: at(TEXT_MARGIN, top, shown), bottom: top + shown.height };
 }
-function fitted(context, name, words, spot, weight, color2, card, inner, growUp = false) {
+function fitted(context, name, words, spot, weight, color2, card, inner, growUp = false, raise = 0) {
   const size = fitSize(words, spot.size, weight, color2, inner, context.measure);
   const shown = grownTextBlock(words, inner, 0, styleOf(size, weight, color2), context.measure, {
     name,
@@ -23105,7 +23125,7 @@ function fitted(context, name, words, spot, weight, color2, card, inner, growUp 
   });
   const capTop = spot.capTop + CAP_HEIGHT * (spot.size - size) / 2;
   const extra = Math.max(0, shown.height - size * LINE_HEIGHT);
-  const top = capTop - capOffset(size) - (growUp ? extra : 0);
+  const top = capTop - capOffset(size) - (growUp ? extra : 0) - raise;
   return { node: at(card.x + CARD_PADDING, top, shown), extra };
 }
 function fitSize(words, size, weight, color2, width, measure) {

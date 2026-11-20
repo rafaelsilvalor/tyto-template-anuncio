@@ -28,7 +28,9 @@ writer learned in another template holds here:
   dots. The first line with no mark is read by position; a later unmarked line is supporting.
 - **`::lamina`**, one per artwork, then its **`::apelo`**: the card takes the shape of the
   line's parts. The main part is the band, the parts before it the title, the parts after it
-  the foot, and the band takes the corners of the edge it reaches.
+  the foot, and the band takes the corners of the edge it reaches. Band words that still do
+  not fit one line once shrunk wrap, and the band grows upward to hold them: its bottom edge,
+  the foot and the note stay where they are.
 - **`::nota`**, once, is the line under the card.
 
 `**…**` is bold wherever it is written. The words are never changed: the marks only rank them.
