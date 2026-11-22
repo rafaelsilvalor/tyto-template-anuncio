@@ -110,10 +110,11 @@ function slot(name: string, source: string, peso?: string) {
   };
 }
 
-type BlockName = 'titulo' | 'apelo' | 'nota';
+type BlockName = 'titulo' | 'corpo' | 'apelo' | 'nota';
 
 interface Brief {
   readonly titulo: string;
+  readonly corpo?: string;
   readonly apelo?: string;
   readonly nota?: string;
   /** The brief's order, as `context.order` carries it (Tyto ADR 0225). */
@@ -131,6 +132,9 @@ function render(brief: Brief, format: keyof typeof FORMATS = 'grid'): Built {
     slots: {
       titulo: slot('titulo', brief.titulo, brief.peso?.titulo),
       lamina: slot('lamina', ''),
+      ...(brief.corpo === undefined
+        ? {}
+        : { corpo: slot('corpo', brief.corpo, brief.peso?.corpo) }),
       ...(brief.apelo === undefined
         ? {}
         : { apelo: slot('apelo', brief.apelo, brief.peso?.apelo) }),
@@ -461,5 +465,76 @@ describe('the main line', () => {
     const name = find(frame, 'LAGOA SANTA')!;
     expect(layOut(name.node)).toHaveLength(1);
     expect(sizeOf(name.node)).toBeLessThan(GRID.name.size);
+  });
+});
+
+describe('the body (TYTO-832)', () => {
+  const TITLE = '## Edital publicado | # Concurso QC Regula';
+  const BODY =
+    '### **700 vagas** · Banca Ômega\nCargos de Analista e Técnico\n## Ganhe até R$ 9,2 mil';
+
+  it('draws the body under the title and above the card, in the brief’s order', () => {
+    const { frame, reports } = render({ titulo: TITLE, corpo: BODY, apelo: OFFER });
+    const name = find(frame, 'QC REGULA')!;
+    const vagas = find(frame, '700 vagas')!;
+    const card = rectNamed(frame, 'cartao')!;
+    expect(vagas.y).toBeGreaterThan(bottomOf(name));
+    expect(bottomOf(find(frame, 'R$ 9,2 mil')!)).toBeLessThan(card.y);
+    expect(reports.filter((report) => report.code === 'W_TEMPLATE_OVERFLOW')).toEqual([]);
+  });
+
+  it('keeps the body’s sizes when the title’s name shrinks to fit', () => {
+    const short = render({ titulo: '# PF', corpo: BODY, apelo: OFFER }).frame;
+    const long = render({
+      titulo: '# Concurso Prefeitura de Lagoa Santa',
+      corpo: BODY,
+      apelo: OFFER,
+    }).frame;
+    expect(sizeOf(find(long, 'LAGOA SANTA')!.node)).toBeLessThan(sizeOf(find(short, 'PF')!.node));
+    expect(sizeOf(find(long, 'R$ 9,2 mil')!.node)).toBe(sizeOf(find(short, 'R$ 9,2 mil')!.node));
+  });
+
+  it('draws an unmarked body line smaller than every marked one', () => {
+    const { frame } = render({ titulo: TITLE, corpo: BODY, apelo: OFFER });
+    const unmarked = sizeOf(find(frame, 'Cargos de Analista')!.node);
+    expect(unmarked).toBeLessThan(sizeOf(find(frame, '700 vagas')!.node));
+    expect(unmarked).toBeLessThan(sizeOf(find(frame, 'R$ 9,2 mil')!.node));
+  });
+
+  it('reads the body’s first unmarked line as a fact, never as the name', () => {
+    const { frame } = render({ titulo: TITLE, corpo: 'Banca Ômega\n## Salário', apelo: OFFER });
+    expect(sizeOf(find(frame, 'Banca Ômega')!.node)).toBeLessThan(
+      sizeOf(find(frame, 'Salário')!.node),
+    );
+  });
+
+  it('weighs the body with its own peso, 1.2 against the title', () => {
+    // A heavier body may make the whole column shrink by one factor; against the title, which
+    // shrinks by the same factor, the body is 1.2 times what it was.
+    const plain = render({ titulo: TITLE, corpo: BODY, apelo: OFFER }).frame;
+    const heavy = render({ titulo: TITLE, corpo: BODY, apelo: OFFER, peso: { corpo: '3' } }).frame;
+    const ratio = (frame: Frame) =>
+      sizeOf(find(frame, 'R$ 9,2 mil')!.node) / sizeOf(find(frame, 'QC REGULA')!.node);
+    expect(ratio(heavy) / ratio(plain)).toBeCloseTo(1.2, 5);
+  });
+});
+
+describe('the title’s unmarked level (TYTO-832)', () => {
+  it('is smaller than every marked level of the title', () => {
+    const { frame } = render({ titulo: HEAD, apelo: OFFER });
+    const unmarked = sizeOf(find(frame, 'Vagas para')!.node);
+    for (const marked of ['Edital publicado', 'QC REGULA', 'R$ 9,2 mil']) {
+      expect(unmarked).toBeLessThan(sizeOf(find(frame, marked)!.node));
+    }
+  });
+
+  it('is smaller than a ### line too', () => {
+    const { frame } = render({
+      titulo: '# Concurso QC Regula\n### Cargos de nível médio\nVagas para Analista',
+      apelo: OFFER,
+    });
+    expect(sizeOf(find(frame, 'Vagas para')!.node)).toBeLessThan(
+      sizeOf(find(frame, 'Cargos de nível médio')!.node),
+    );
   });
 });

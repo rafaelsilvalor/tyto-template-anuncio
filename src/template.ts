@@ -37,6 +37,8 @@ import {
   at,
   block,
   blockColumn,
+  bodyBlock,
+  bodySize,
   card as drawCard,
   cardSegments,
   grownTextBlock,
@@ -278,6 +280,14 @@ export const ANUNCIO_PARAMETERS = {
     max: 1,
     description: "The most of the panel's room the head may take when its main line grows.",
   },
+  unmarkedRatio: {
+    kind: 'ratio',
+    default: 0.8,
+    min: 0,
+    max: 1,
+    description:
+      'A line with no # mark, in the title and in the body, as a share of the smallest marked size: the unmarked level is always the smallest (maintainer, 2026-11-22).',
+  },
 } as const satisfies ParameterSchema;
 
 /**
@@ -301,6 +311,7 @@ export const build: TemplateBuild = (context: TemplateContext) => {
   const reach = Math.max(0, geometry.panelTop - context.size.h * values.photoShare);
 
   const titulo = levelsOf(wordsOf(context, 'titulo'));
+  const corpo = wordsOf(context, 'corpo');
   const apelo = levelsOf(wordsOf(context, 'apelo'));
   const nota = wordsOf(context, 'nota');
   const entries: ColumnEntry[] = [
@@ -308,6 +319,11 @@ export const build: TemplateBuild = (context: TemplateContext) => {
       name: 'titulo',
       scale: weightOf(context.slots['titulo']),
       build: (room, scale) => head(context, ink, geometry, titulo, room, scale, values.headShare),
+    },
+    {
+      name: 'corpo',
+      scale: weightOf(context.slots['corpo']),
+      build: (room, scale) => body(context, ink, geometry, corpo, room, scale),
     },
     {
       name: 'apelo',
@@ -325,8 +341,12 @@ export const build: TemplateBuild = (context: TemplateContext) => {
     name: 'coluna',
     entries,
     order: context.order,
-    gapBetween: (above, below) =>
-      above === 'titulo' || below === 'titulo' ? values.headGap : geometry.proofGap,
+    gapBetween: (above, below) => {
+      // The body reads as the head's continuation: under the name it keeps the name's own gap.
+      if (above === 'titulo' && below === 'corpo') return geometry.nameGap;
+      const isHead = (name: string): boolean => name === 'titulo' || name === 'corpo';
+      return isHead(above) || isHead(below) ? values.headGap : geometry.proofGap;
+    },
     parameters: { reach },
   });
   reportOverflow(context.report, column.overflow, 0);
@@ -431,6 +451,7 @@ function lookOf(part: LevelPart, geometry: Geometry, ink: Ink, ratio: number): L
     style: styleOf(spot.size * ratio, weight, color),
     lineHeight: LINE_HEIGHT,
   });
+  const unmarked: Spot = { capTop: geometry.support.capTop, size: unmarkedSize(geometry) };
   switch (part.level) {
     case 1:
       return { ...look(geometry.name, BLACK, ink('accent')), transform: upper };
@@ -443,12 +464,64 @@ function lookOf(part: LevelPart, geometry: Geometry, ink: Ink, ratio: number): L
     default:
       return part.position === 'before'
         ? {
-            ...look(geometry.support, LIGHT, ink('accent')),
-            letterSpacing: geometry.support.size * ratio * TRACKING,
+            ...look(unmarked, LIGHT, ink('accent')),
+            letterSpacing: unmarked.size * ratio * TRACKING,
             transform: upper,
           }
-        : look(geometry.support, LIGHT, ink('ink'));
+        : look(unmarked, LIGHT, ink('ink'));
   }
+}
+
+/** The marked levels' sizes the title and the body share: `#` the name, `##`, `###`. */
+function markedSizes(geometry: Geometry): Readonly<Record<1 | 2 | 3, number>> {
+  return {
+    1: geometry.name.size,
+    2: Math.min(geometry.kicker.size, geometry.salary.size),
+    3: geometry.support.size,
+  };
+}
+
+/** A line with no mark: the smallest marked size times `unmarkedRatio` (the kit's `bodySize`). */
+function unmarkedSize(geometry: Geometry): number {
+  const { unmarkedRatio } = parameterValues(ANUNCIO_PARAMETERS);
+  return bodySize(0, markedSizes(geometry), { unmarkedRatio });
+}
+
+/* ---------------------------------------------------------------------- corpo (body) -- */
+
+/**
+ * The body: `::corpo`'s lines of general information (vacancies, exam board, roles, salary),
+ * read by the same marks as the head and drawn by the kit's `bodyBlock` (TYTO-831), at their
+ * own scale. `##` is the salary's look, `###` a supporting line in Medium, an unmarked line the
+ * smallest, in Light. No `::corpo`, no block: a brief that keeps its facts in `::titulo` draws
+ * them there, as 0.4.0 did.
+ */
+function body(
+  context: TemplateContext,
+  ink: Ink,
+  geometry: Geometry,
+  words: RichText,
+  room: Area,
+  scale: number,
+): Block | undefined {
+  const { unmarkedRatio } = parameterValues(ANUNCIO_PARAMETERS);
+  const sizes = markedSizes(geometry);
+  return bodyBlock(room, scale, {
+    words,
+    sizes: { 1: sizes[1], 2: geometry.salary.size, 3: sizes[3] },
+    look: (part, size) => ({
+      style: styleOf(
+        size,
+        part.level === 1 ? BLACK : part.level === 0 ? LIGHT : MEDIUM,
+        part.level === 1 ? ink('accent') : ink('ink'),
+      ),
+      lineHeight: LINE_HEIGHT,
+    }),
+    measure: context.measure,
+    divider: (_width, ratio) => dots(ink('ink'), ratio),
+    parameters: { unmarkedRatio, partGap: geometry.partGap, lineGap: geometry.lineGap },
+    name: 'corpo',
+  });
 }
 
 /** The divider: three dots, centred. */

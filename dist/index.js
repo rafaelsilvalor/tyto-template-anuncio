@@ -14361,7 +14361,7 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
   }, `return INVALID;`);
   return outputVar;
 }
-function emitOwnKeys(doc, ctx, accessor, kVar, body, onSymbol) {
+function emitOwnKeys(doc, ctx, accessor, kVar, body2, onSymbol) {
   const propIsEnumerableConst = addConstant(ctx, Object.prototype.propertyIsEnumerable);
   const symsVar = newVar(ctx);
   const keysVar = newVar(ctx);
@@ -14372,7 +14372,7 @@ function emitOwnKeys(doc, ctx, accessor, kVar, body, onSymbol) {
   doc.indented((d) => {
     d.write(`const ${kVar} = ${keysVar}[${iVar}];`);
     d.write(`if (${kVar} === "__proto__" || !${propIsEnumerableConst}.call(${accessor}, ${kVar})) continue;`);
-    body(d);
+    body2(d);
   });
   doc.write(`}`);
   doc.write(`for (let ${iVar} = 0; ${iVar} < ${symsVar}.length; ${iVar}++) {`);
@@ -14382,7 +14382,7 @@ function emitOwnKeys(doc, ctx, accessor, kVar, body, onSymbol) {
     if (onSymbol)
       d.write(onSymbol);
     else
-      body(d);
+      body2(d);
   });
   doc.write(`}`);
 }
@@ -22384,7 +22384,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.10/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22421,7 +22421,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.16.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.17.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function sidesOf(padding) {
   if (typeof padding === "number") {
     return { top: padding, right: padding, bottom: padding, left: padding };
@@ -22571,6 +22571,230 @@ function mark(shape, height, fill, name) {
     })
   );
 }
+var FIELD_SEPARATOR = "|";
+function fields(line, limit) {
+  const result = [[]];
+  const last = () => result[result.length - 1];
+  for (const inline of line) {
+    if (inline.kind !== "text" || limit !== void 0 && result.length >= limit) {
+      last().push(inline);
+      continue;
+    }
+    const parts = inline.value.split(FIELD_SEPARATOR);
+    for (const [index, part] of parts.entries()) {
+      if (index > 0) {
+        if (limit !== void 0 && result.length >= limit) {
+          last().push(sliceOf(inline, `${FIELD_SEPARATOR}${part}`, inline.value));
+          continue;
+        }
+        result.push([]);
+      }
+      if (part !== "") last().push(sliceOf(inline, part, inline.value));
+    }
+  }
+  return result.map(trimEnds);
+}
+function plain(text2) {
+  return text2.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return inline.value;
+      case "break":
+        return "\n";
+      default:
+        return plain(inline.children);
+    }
+  }).join("");
+}
+function sliceOf(inline, part, whole) {
+  const offset = whole.indexOf(part);
+  const start = Math.min(inline.range.start + Math.max(offset, 0), inline.range.end);
+  return {
+    kind: "text",
+    value: part,
+    range: { start, end: Math.min(start + part.length, inline.range.end) }
+  };
+}
+function trimEnds(field) {
+  const trimmed2 = [...field];
+  const first = trimmed2[0];
+  if (first?.kind === "text") trimmed2[0] = { ...first, value: first.value.replace(/^\s+/u, "") };
+  const lastIndex = trimmed2.length - 1;
+  const final = trimmed2[lastIndex];
+  if (final?.kind === "text") {
+    trimmed2[lastIndex] = { ...final, value: final.value.replace(/\s+$/u, "") };
+  }
+  return trimmed2.filter((inline) => inline.kind !== "text" || inline.value !== "");
+}
+function atLeastOne(runs) {
+  const [first, ...rest] = runs;
+  return first === void 0 ? void 0 : [first, ...rest];
+}
+function runsIn(value, style2) {
+  return atLeastOne(
+    runsOf(
+      value,
+      { font: style2.font, size: style2.size, weight: style2.weight, color: style2.color },
+      style2.paragraphSpacing === void 0 ? style2.highlights?.options : { ...style2.highlights?.options, paragraphSpacing: style2.paragraphSpacing }
+    )
+  );
+}
+function nothing(width, height) {
+  return block(width, height, group({ children: [] }));
+}
+function grownTextBlock(value, width, minHeight, style2, measure, options = {}) {
+  const runs = runsIn(value, style2);
+  if (runs === void 0) return nothing(width, minHeight);
+  const measured = measure(text({ ...options, runs, box: { w: width } }));
+  if (measured === void 0) {
+    return block(
+      width,
+      minHeight,
+      text({ ...options, runs, box: { w: width, h: minHeight }, overflow: "shrink" })
+    );
+  }
+  const height = Math.max(minHeight, measured.height);
+  return block(width, height, text({ ...options, runs, box: { w: width, h: height } }));
+}
+function naturalWidth(value, style2, measure) {
+  const runs = runsIn(value, style2);
+  if (runs === void 0) return 0;
+  const measured = measure(text({ runs, box: {} }));
+  return measured === void 0 ? void 0 : Math.ceil(measured.width);
+}
+var DIVIDER = "---";
+function levelsOf(text2, options = {}) {
+  const byPosition = options.readByPosition ?? true;
+  const items = [];
+  for (const line of blockLines(text2)) {
+    const written = plain(line).trim();
+    if (written === "") continue;
+    if (written === DIVIDER) {
+      items.push({ kind: "divider" });
+      continue;
+    }
+    const parts = fields(line).map(tidied).filter((part) => plain(part).trim() !== "").map(markOf);
+    if (parts.length === 0) continue;
+    const first = byPosition && !items.some((item) => item.kind === "line");
+    items.push({ kind: "line", parts: ranked(parts, first) });
+  }
+  return items;
+}
+function blockLines(text2) {
+  const result = [[]];
+  for (const inline of text2) {
+    if (inline.kind === "break" && inline.typed !== true) result.push([]);
+    else result[result.length - 1].push(inline);
+  }
+  return result;
+}
+function tidied(part) {
+  const inlines = [...part];
+  inlines.forEach((inline, index) => {
+    if (inline.kind !== "break") return;
+    const before = inlines[index - 1];
+    if (before?.kind === "text") inlines[index - 1] = trimmed(before, "end");
+    const after = inlines[index + 1];
+    if (after?.kind === "text") inlines[index + 1] = trimmed(after, "start");
+  });
+  while (inlines[0]?.kind === "break") inlines.shift();
+  while (inlines[inlines.length - 1]?.kind === "break") inlines.pop();
+  return inlines.filter((inline) => inline.kind !== "text" || inline.value !== "");
+}
+function trimmed(inline, side) {
+  const value = side === "start" ? inline.value.trimStart() : inline.value.trimEnd();
+  const cut2 = inline.value.length - value.length;
+  const range = side === "start" ? { start: Math.min(inline.range.start + cut2, inline.range.end), end: inline.range.end } : { start: inline.range.start, end: Math.max(inline.range.end - cut2, inline.range.start) };
+  return { ...inline, value, range };
+}
+function markOf(part) {
+  const first = part[0];
+  if (first?.kind !== "text") return { words: part, level: 0 };
+  const match = /^(#{1,3})\s+/u.exec(first.value);
+  if (match === null) return { words: part, level: 0 };
+  const rest = first.value.slice(match[0].length);
+  const start = Math.min(first.range.start + match[0].length, first.range.end);
+  const head2 = rest === "" ? [] : [{ ...first, value: rest, range: { start, end: first.range.end } }];
+  return { words: [...head2, ...part.slice(1)], level: match[1].length };
+}
+function ranked(parts, first) {
+  const marked = parts.filter((part) => part.level > 0);
+  let main;
+  let levels;
+  if (marked.length === 0 && !first) {
+    return parts.map((part) => ({ words: part.words, level: 0, position: "after" }));
+  }
+  if (marked.length === 0) {
+    main = parts.length >= 3 ? 1 : 0;
+    levels = parts.map((_, index) => index === main ? 1 : 0);
+  } else {
+    const highest = Math.min(...marked.map((part) => part.level));
+    main = parts.findIndex((part) => part.level === highest);
+    levels = parts.map((part) => part.level);
+  }
+  return parts.map((part, index) => ({
+    words: part.words,
+    level: levels[index],
+    position: index < main ? "before" : index === main ? "main" : "after"
+  }));
+}
+function levelStack(items, style2, width, measure) {
+  const align = style2.align ?? "center";
+  const lineGap = style2.lineGap ?? style2.gap;
+  const drawn = [];
+  for (const item of items) {
+    if (item.kind === "divider") {
+      if (style2.divider !== void 0) {
+        drawn.push({ kind: "divider", item, drawing: style2.divider(width) });
+      }
+      continue;
+    }
+    const rows = item.parts.map((part, index) => rowOf(part, index, style2, width, measure, align));
+    drawn.push({ kind: "line", item, rows });
+  }
+  const kept = drawn.filter(
+    (each, index) => each.kind !== "divider" || drawn.slice(0, index).some((before) => before.kind === "line") && drawn.slice(index + 1).some((after) => after.kind === "line")
+  );
+  let y = 0;
+  const children = [];
+  for (const [index, each] of kept.entries()) {
+    if (index > 0) y += spaceOf(lineGap, kept[index - 1].item, each.item);
+    if (each.kind === "divider") {
+      children.push(at(offsetOf(align, width, each.drawing.width), y, each.drawing));
+      y += each.drawing.height;
+      continue;
+    }
+    for (const [row2, piece] of each.rows.entries()) {
+      if (row2 > 0) {
+        y += spaceOf(style2.gap, each.item.parts[row2 - 1], each.item.parts[row2]);
+      }
+      children.push(at(offsetOf(align, width, piece.width), y, piece));
+      y += piece.height;
+    }
+  }
+  if (children.length === 0) return stack({ name: style2.name, items: [] });
+  return block(width, y, group({ name: style2.name, children }));
+}
+function spaceOf(gap, above, below) {
+  return typeof gap === "number" ? gap : gap(above, below);
+}
+function rowOf(part, index, style2, width, measure, align) {
+  const look = style2.look(part);
+  const lineHeight = look.lineHeight ?? 1.2;
+  const words = look.transform === void 0 ? part.words : look.transform(part.words);
+  return grownTextBlock(words, width, look.style.size * lineHeight, look.style, measure, {
+    name: `${style2.name}-${part.position}-${index}`,
+    align: TEXT_ALIGN[align],
+    lineHeight,
+    ...look.letterSpacing === void 0 ? {} : { letterSpacing: look.letterSpacing }
+  });
+}
+var TEXT_ALIGN = { start: "left", center: "center", end: "right" };
+function offsetOf(align, width, itemWidth) {
+  if (align === "center") return (width - itemWidth) / 2;
+  if (align === "end") return width - itemWidth;
+  return 0;
+}
 function parameterValues(schema, given = {}) {
   const values = {};
   for (const [name, declared] of Object.entries(schema)) {
@@ -22585,6 +22809,51 @@ function valueWithin(declared, value) {
   }
   if (typeof value !== "number" || Number.isNaN(value)) return declared.default;
   return Math.min(declared.max ?? Infinity, Math.max(declared.min ?? -Infinity, value));
+}
+var BODY_PARAMETERS = {
+  unmarkedRatio: {
+    kind: "ratio",
+    default: 0.8,
+    min: 0,
+    max: 1,
+    description: "The size of a line with no # mark, as a share of the smallest marked size: below 1, the unmarked level is always the smallest."
+  },
+  partGap: {
+    kind: "length",
+    default: 8,
+    min: 0,
+    description: "The room between two parts of one line, at scale 1."
+  },
+  lineGap: {
+    kind: "length",
+    default: 12,
+    min: 0,
+    description: "The room between two lines, or a line and the divider, at scale 1."
+  }
+};
+function bodySize(level, sizes, parameters = {}) {
+  if (level !== 0) return sizes[level];
+  const values = parameterValues(BODY_PARAMETERS, parameters);
+  return Math.min(sizes[1], sizes[2], sizes[3]) * values.unmarkedRatio;
+}
+function bodyBlock(area, scale, options) {
+  const items = levelsOf(options.words, { readByPosition: false });
+  if (items.length === 0) return void 0;
+  const values = parameterValues(BODY_PARAMETERS, options.parameters);
+  const lineGap = options.lineGapBetween === void 0 ? values.lineGap * scale : typeof options.lineGapBetween === "number" ? options.lineGapBetween * scale : (above, below) => options.lineGapBetween(above, below) * scale;
+  const drawn = levelStack(
+    items,
+    {
+      name: options.name ?? "body",
+      look: (part) => options.look(part, bodySize(part.level, options.sizes, values) * scale),
+      gap: values.partGap * scale,
+      lineGap,
+      ...options.divider === void 0 ? {} : { divider: (width) => options.divider(width, scale) }
+    },
+    area.width,
+    options.measure
+  );
+  return drawn.height > 0 ? drawn : void 0;
 }
 var WEIGHT = "peso";
 var BLOCK_COLUMN_PARAMETERS = {
@@ -22746,42 +23015,6 @@ function offsetFor2(align, free) {
       return free;
   }
 }
-function atLeastOne(runs) {
-  const [first, ...rest] = runs;
-  return first === void 0 ? void 0 : [first, ...rest];
-}
-function runsIn(value, style2) {
-  return atLeastOne(
-    runsOf(
-      value,
-      { font: style2.font, size: style2.size, weight: style2.weight, color: style2.color },
-      style2.paragraphSpacing === void 0 ? style2.highlights?.options : { ...style2.highlights?.options, paragraphSpacing: style2.paragraphSpacing }
-    )
-  );
-}
-function nothing(width, height) {
-  return block(width, height, group({ children: [] }));
-}
-function grownTextBlock(value, width, minHeight, style2, measure, options = {}) {
-  const runs = runsIn(value, style2);
-  if (runs === void 0) return nothing(width, minHeight);
-  const measured = measure(text({ ...options, runs, box: { w: width } }));
-  if (measured === void 0) {
-    return block(
-      width,
-      minHeight,
-      text({ ...options, runs, box: { w: width, h: minHeight }, overflow: "shrink" })
-    );
-  }
-  const height = Math.max(minHeight, measured.height);
-  return block(width, height, text({ ...options, runs, box: { w: width, h: height } }));
-}
-function naturalWidth(value, style2, measure) {
-  const runs = runsIn(value, style2);
-  if (runs === void 0) return 0;
-  const measured = measure(text({ runs, box: {} }));
-  return measured === void 0 ? void 0 : Math.ceil(measured.width);
-}
 var MAIN_LINE_FIT_PARAMETERS = {
   minScale: {
     kind: "ratio",
@@ -22902,195 +23135,8 @@ function cardSegments(items, draw, minHeight = {}) {
 function heightOf(segment) {
   return Math.max(segment.minHeight ?? 0, segment.content.height);
 }
-var FIELD_SEPARATOR = "|";
-function fields(line, limit) {
-  const result = [[]];
-  const last = () => result[result.length - 1];
-  for (const inline of line) {
-    if (inline.kind !== "text" || limit !== void 0 && result.length >= limit) {
-      last().push(inline);
-      continue;
-    }
-    const parts = inline.value.split(FIELD_SEPARATOR);
-    for (const [index, part] of parts.entries()) {
-      if (index > 0) {
-        if (limit !== void 0 && result.length >= limit) {
-          last().push(sliceOf(inline, `${FIELD_SEPARATOR}${part}`, inline.value));
-          continue;
-        }
-        result.push([]);
-      }
-      if (part !== "") last().push(sliceOf(inline, part, inline.value));
-    }
-  }
-  return result.map(trimEnds);
-}
-function plain(text2) {
-  return text2.map((inline) => {
-    switch (inline.kind) {
-      case "text":
-        return inline.value;
-      case "break":
-        return "\n";
-      default:
-        return plain(inline.children);
-    }
-  }).join("");
-}
-function sliceOf(inline, part, whole) {
-  const offset = whole.indexOf(part);
-  const start = Math.min(inline.range.start + Math.max(offset, 0), inline.range.end);
-  return {
-    kind: "text",
-    value: part,
-    range: { start, end: Math.min(start + part.length, inline.range.end) }
-  };
-}
-function trimEnds(field) {
-  const trimmed2 = [...field];
-  const first = trimmed2[0];
-  if (first?.kind === "text") trimmed2[0] = { ...first, value: first.value.replace(/^\s+/u, "") };
-  const lastIndex = trimmed2.length - 1;
-  const final = trimmed2[lastIndex];
-  if (final?.kind === "text") {
-    trimmed2[lastIndex] = { ...final, value: final.value.replace(/\s+$/u, "") };
-  }
-  return trimmed2.filter((inline) => inline.kind !== "text" || inline.value !== "");
-}
-var DIVIDER = "---";
-function levelsOf(text2) {
-  const items = [];
-  for (const line of blockLines(text2)) {
-    const written = plain(line).trim();
-    if (written === "") continue;
-    if (written === DIVIDER) {
-      items.push({ kind: "divider" });
-      continue;
-    }
-    const parts = fields(line).map(tidied).filter((part) => plain(part).trim() !== "").map(markOf);
-    if (parts.length === 0) continue;
-    const first = !items.some((item) => item.kind === "line");
-    items.push({ kind: "line", parts: ranked(parts, first) });
-  }
-  return items;
-}
-function blockLines(text2) {
-  const result = [[]];
-  for (const inline of text2) {
-    if (inline.kind === "break" && inline.typed !== true) result.push([]);
-    else result[result.length - 1].push(inline);
-  }
-  return result;
-}
-function tidied(part) {
-  const inlines = [...part];
-  inlines.forEach((inline, index) => {
-    if (inline.kind !== "break") return;
-    const before = inlines[index - 1];
-    if (before?.kind === "text") inlines[index - 1] = trimmed(before, "end");
-    const after = inlines[index + 1];
-    if (after?.kind === "text") inlines[index + 1] = trimmed(after, "start");
-  });
-  while (inlines[0]?.kind === "break") inlines.shift();
-  while (inlines[inlines.length - 1]?.kind === "break") inlines.pop();
-  return inlines.filter((inline) => inline.kind !== "text" || inline.value !== "");
-}
-function trimmed(inline, side) {
-  const value = side === "start" ? inline.value.trimStart() : inline.value.trimEnd();
-  const cut2 = inline.value.length - value.length;
-  const range = side === "start" ? { start: Math.min(inline.range.start + cut2, inline.range.end), end: inline.range.end } : { start: inline.range.start, end: Math.max(inline.range.end - cut2, inline.range.start) };
-  return { ...inline, value, range };
-}
-function markOf(part) {
-  const first = part[0];
-  if (first?.kind !== "text") return { words: part, level: 0 };
-  const match = /^(#{1,3})\s+/u.exec(first.value);
-  if (match === null) return { words: part, level: 0 };
-  const rest = first.value.slice(match[0].length);
-  const start = Math.min(first.range.start + match[0].length, first.range.end);
-  const head2 = rest === "" ? [] : [{ ...first, value: rest, range: { start, end: first.range.end } }];
-  return { words: [...head2, ...part.slice(1)], level: match[1].length };
-}
-function ranked(parts, first) {
-  const marked = parts.filter((part) => part.level > 0);
-  let main;
-  let levels;
-  if (marked.length === 0 && !first) {
-    return parts.map((part) => ({ words: part.words, level: 0, position: "after" }));
-  }
-  if (marked.length === 0) {
-    main = parts.length >= 3 ? 1 : 0;
-    levels = parts.map((_, index) => index === main ? 1 : 0);
-  } else {
-    const highest = Math.min(...marked.map((part) => part.level));
-    main = parts.findIndex((part) => part.level === highest);
-    levels = parts.map((part) => part.level);
-  }
-  return parts.map((part, index) => ({
-    words: part.words,
-    level: levels[index],
-    position: index < main ? "before" : index === main ? "main" : "after"
-  }));
-}
-function levelStack(items, style2, width, measure) {
-  const align = style2.align ?? "center";
-  const lineGap = style2.lineGap ?? style2.gap;
-  const drawn = [];
-  for (const item of items) {
-    if (item.kind === "divider") {
-      if (style2.divider !== void 0) {
-        drawn.push({ kind: "divider", item, drawing: style2.divider(width) });
-      }
-      continue;
-    }
-    const rows = item.parts.map((part, index) => rowOf(part, index, style2, width, measure, align));
-    drawn.push({ kind: "line", item, rows });
-  }
-  const kept = drawn.filter(
-    (each, index) => each.kind !== "divider" || drawn.slice(0, index).some((before) => before.kind === "line") && drawn.slice(index + 1).some((after) => after.kind === "line")
-  );
-  let y = 0;
-  const children = [];
-  for (const [index, each] of kept.entries()) {
-    if (index > 0) y += spaceOf(lineGap, kept[index - 1].item, each.item);
-    if (each.kind === "divider") {
-      children.push(at(offsetOf(align, width, each.drawing.width), y, each.drawing));
-      y += each.drawing.height;
-      continue;
-    }
-    for (const [row2, piece] of each.rows.entries()) {
-      if (row2 > 0) {
-        y += spaceOf(style2.gap, each.item.parts[row2 - 1], each.item.parts[row2]);
-      }
-      children.push(at(offsetOf(align, width, piece.width), y, piece));
-      y += piece.height;
-    }
-  }
-  if (children.length === 0) return stack({ name: style2.name, items: [] });
-  return block(width, y, group({ name: style2.name, children }));
-}
-function spaceOf(gap, above, below) {
-  return typeof gap === "number" ? gap : gap(above, below);
-}
-function rowOf(part, index, style2, width, measure, align) {
-  const look = style2.look(part);
-  const lineHeight = look.lineHeight ?? 1.2;
-  const words = look.transform === void 0 ? part.words : look.transform(part.words);
-  return grownTextBlock(words, width, look.style.size * lineHeight, look.style, measure, {
-    name: `${style2.name}-${part.position}-${index}`,
-    align: TEXT_ALIGN[align],
-    lineHeight,
-    ...look.letterSpacing === void 0 ? {} : { letterSpacing: look.letterSpacing }
-  });
-}
-var TEXT_ALIGN = { start: "left", center: "center", end: "right" };
-function offsetOf(align, width, itemWidth) {
-  if (align === "center") return (width - itemWidth) / 2;
-  if (align === "end") return width - itemWidth;
-  return 0;
-}
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.10/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -23126,7 +23172,7 @@ function drawLogo(kit, height, inks) {
   return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.10/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -23301,6 +23347,13 @@ var ANUNCIO_PARAMETERS = {
     min: 0,
     max: 1,
     description: "The most of the panel's room the head may take when its main line grows."
+  },
+  unmarkedRatio: {
+    kind: "ratio",
+    default: 0.8,
+    min: 0,
+    max: 1,
+    description: "A line with no # mark, in the title and in the body, as a share of the smallest marked size: the unmarked level is always the smallest (maintainer, 2026-11-22)."
   }
 };
 var build = (context) => {
@@ -23314,6 +23367,7 @@ var build = (context) => {
   };
   const reach = Math.max(0, geometry.panelTop - context.size.h * values.photoShare);
   const titulo = levelsOf(wordsOf(context, "titulo"));
+  const corpo = wordsOf(context, "corpo");
   const apelo = levelsOf(wordsOf(context, "apelo"));
   const nota = wordsOf(context, "nota");
   const entries = [
@@ -23321,6 +23375,11 @@ var build = (context) => {
       name: "titulo",
       scale: weightOf(context.slots["titulo"]),
       build: (room, scale) => head(context, ink, geometry, titulo, room, scale, values.headShare)
+    },
+    {
+      name: "corpo",
+      scale: weightOf(context.slots["corpo"]),
+      build: (room, scale) => body(context, ink, geometry, corpo, room, scale)
     },
     {
       name: "apelo",
@@ -23337,7 +23396,11 @@ var build = (context) => {
     name: "coluna",
     entries,
     order: context.order,
-    gapBetween: (above, below) => above === "titulo" || below === "titulo" ? values.headGap : geometry.proofGap,
+    gapBetween: (above, below) => {
+      if (above === "titulo" && below === "corpo") return geometry.nameGap;
+      const isHead = (name) => name === "titulo" || name === "corpo";
+      return isHead(above) || isHead(below) ? values.headGap : geometry.proofGap;
+    },
     parameters: { reach }
   });
   reportOverflow(context.report, column.overflow, 0);
@@ -23410,6 +23473,7 @@ function lookOf(part, geometry, ink, ratio) {
     style: styleOf(spot.size * ratio, weight, color2),
     lineHeight: LINE_HEIGHT
   });
+  const unmarked = { capTop: geometry.support.capTop, size: unmarkedSize(geometry) };
   switch (part.level) {
     case 1:
       return { ...look(geometry.name, BLACK, ink("accent")), transform: upper };
@@ -23419,11 +23483,42 @@ function lookOf(part, geometry, ink, ratio) {
       return look(geometry.support, MEDIUM, ink("ink"));
     default:
       return part.position === "before" ? {
-        ...look(geometry.support, LIGHT, ink("accent")),
-        letterSpacing: geometry.support.size * ratio * TRACKING,
+        ...look(unmarked, LIGHT, ink("accent")),
+        letterSpacing: unmarked.size * ratio * TRACKING,
         transform: upper
-      } : look(geometry.support, LIGHT, ink("ink"));
+      } : look(unmarked, LIGHT, ink("ink"));
   }
+}
+function markedSizes(geometry) {
+  return {
+    1: geometry.name.size,
+    2: Math.min(geometry.kicker.size, geometry.salary.size),
+    3: geometry.support.size
+  };
+}
+function unmarkedSize(geometry) {
+  const { unmarkedRatio } = parameterValues(ANUNCIO_PARAMETERS);
+  return bodySize(0, markedSizes(geometry), { unmarkedRatio });
+}
+function body(context, ink, geometry, words, room, scale) {
+  const { unmarkedRatio } = parameterValues(ANUNCIO_PARAMETERS);
+  const sizes = markedSizes(geometry);
+  return bodyBlock(room, scale, {
+    words,
+    sizes: { 1: sizes[1], 2: geometry.salary.size, 3: sizes[3] },
+    look: (part, size) => ({
+      style: styleOf(
+        size,
+        part.level === 1 ? BLACK : part.level === 0 ? LIGHT : MEDIUM,
+        part.level === 1 ? ink("accent") : ink("ink")
+      ),
+      lineHeight: LINE_HEIGHT
+    }),
+    measure: context.measure,
+    divider: (_width, ratio) => dots(ink("ink"), ratio),
+    parameters: { unmarkedRatio, partGap: geometry.partGap, lineGap: geometry.lineGap },
+    name: "corpo"
+  });
 }
 function dots(color2, ratio) {
   const size = DOT * ratio;

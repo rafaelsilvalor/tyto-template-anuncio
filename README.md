@@ -29,6 +29,13 @@ writer learned in another template holds here:
   the status line, after it the salary; `###` a stronger supporting line; an unmarked part a
   supporting line, or, before the name, a tracked label in the accent; a line of `---` the three
   dots. The first line with no mark is read by position; a later unmarked line is supporting.
+- **`::corpo`** is the general information under the title — vacancies, exam board, roles,
+  salary — in the same marks, as a block of its own (Tyto TYTO-832, the kit's `bodyBlock`): it
+  keeps its sizes when the exam's name grows or shrinks to fit, and takes its own `peso`. Its
+  first line is a fact, never a name. Shared before the slides or after `::comum`, a slide's own
+  inside a `::lamina`. A brief with no `::corpo` draws every line in the title, as 0.4.0 did.
+- **A line with no mark is the smallest**, in the title and in the body: the smallest marked
+  size times 0.8 (`unmarkedRatio`), so `#`, `##` and `###` carry the weight.
 - **`::lamina`**, one per artwork, then its **`::apelo`**: the card takes the shape of the
   line's parts. The main part is the band, the parts before it the title, the parts after it
   the foot, and the band takes the corners of the edge it reaches; the kit's `card` draws it.
@@ -65,7 +72,9 @@ formats: [grid, story]
 ---
 ::titulo
   ## Edital publicado | # Concurso QC Regula
-  Vagas para Analista Técnico
+
+::corpo
+  ### Vagas para Analista Técnico
   ## Ganhe até R$ 9 mil por mês!
 
 ::lamina
@@ -83,6 +92,10 @@ formats: [grid, story]
 
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
+
+**0.5.0 adds `::corpo`:** the title keeps the exam's name and its status; vacancies, board,
+roles and salary go in `::corpo` under it. A 0.4 brief still draws, every line in the title,
+and its unmarked lines come out a little smaller than before.
 
 **0.4.0 draws the brief in its order:** a `::nota` written before the slides, as 0.3 briefs did,
 now comes out above the card. Move it after `::comum` to keep it under the card.
