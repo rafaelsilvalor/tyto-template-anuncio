@@ -10,13 +10,16 @@ template from the brand kit installed on the machine, and without one it draws a
 (Tyto ADR 0063, ADR 0065). The example briefs are invented copy.
 
 **One layout is drawn so far: `vitrine` with `cartao`.** The photograph fills the top; a panel
-with rounded corners rises over it with the head's lines, then the offer card, the note and the
-logo. Its numbers are a reference art's layers, and they are the least each piece gets: a line
-that wraps pushes the lines under it down, a card title that wraps grows the card upward, a note
-that wraps lifts the card, and the panel rises over the photograph to make the room. Only the
-logo never moves; past half the panel's height the head is reported as an overflow. The other
-heads and offers named below are declared and draw this one until they arrive, with the kit
-pieces they consume (Tyto TYTO-797 to TYTO-801).
+with rounded corners rises over it, and in it one column of Tyto's kit (`blockColumn`, Tyto
+ADR 0224) holds the head, the offer card and the note **in the order the brief wrote them**,
+centred together between the panel's top and the logo, which stays pinned at the foot. The
+head's `#` line grows or shrinks to fill the width on one line (the kit's `mainLineScale`,
+0.7 to 1.6 of the reference) and its other lines follow. When the column does not fit, every
+block shrinks by one factor down to 0.7; then the panel rises over the photograph, which keeps
+at least a quarter of the frame; what is still left over is reported as an overflow. Every
+number the layout uses is a declared parameter (`ANUNCIO_PARAMETERS` beside the kit's own),
+the reference's value its default. The other heads and offers named below are declared and draw
+this one until they arrive, with the kit pieces they consume (Tyto TYTO-797 to TYTO-801).
 
 **The brief speaks Tyto's shared vocabulary** (Tyto `docs/slot-vocabulary.md`), so what a
 writer learned in another template holds here:
@@ -28,10 +31,16 @@ writer learned in another template holds here:
   dots. The first line with no mark is read by position; a later unmarked line is supporting.
 - **`::lamina`**, one per artwork, then its **`::apelo`**: the card takes the shape of the
   line's parts. The main part is the band, the parts before it the title, the parts after it
-  the foot, and the band takes the corners of the edge it reaches; the kit's `card` draws it. Band words that still do
-  not fit one line once shrunk wrap, and the band grows upward to hold them: its bottom edge,
-  the foot and the note stay where they are.
-- **`::nota`**, once, is the line under the card.
+  the foot, and the band takes the corners of the edge it reaches; the kit's `card` draws it.
+  Band and title words shrink to one line before they wrap, and a segment grows to hold them.
+- **`::nota`** is the proof line, shared or a slide's own (Tyto ADR 0225). Written after
+  `::comum`, which closes the slides, it is every artwork's and goes under the card; written
+  inside a `::lamina` it is that artwork's only and replaces the shared one there. A note
+  written before the first slide is every artwork's too, and is drawn **above** the card, since
+  the brief is read top to bottom as the art.
+- **`{peso: 1}`, `{peso: 3}`** on `::titulo`, `::apelo` or `::nota` draw that block at 0.85 or
+  1.2 of its size (Tyto `docs/slot-vocabulary.md`, `peso`); the head never grows past the width
+  its main line fills.
 
 `**…**` is bold wherever it is written. The words are never changed: the marks only rank them.
 
@@ -66,10 +75,17 @@ formats: [grid, story]
 ::lamina
 ::apelo
   # Pacote Completo | 7 dias de garantia
+
+::comum
+::nota
+  Estude como **7 a cada 10 aprovados**
 ```
 
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
+
+**0.4.0 draws the brief in its order:** a `::nota` written before the slides, as 0.3 briefs did,
+now comes out above the card. Move it after `::comum` to keep it under the card.
 
 **0.3.0 renamed what 0.2.0 briefs wrote:** `::concurso` → `::titulo` (lines ranked by `#`
 instead of labels), `::versao` → `::lamina` with `::apelo` (parts instead of `Oferta:`,

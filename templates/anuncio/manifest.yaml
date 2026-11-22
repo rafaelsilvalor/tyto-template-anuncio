@@ -1,5 +1,5 @@
 name: anuncio
-version: 0.3.0
+version: 0.4.0
 description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
@@ -30,12 +30,19 @@ slots:
   # part is the band, the parts before it the card's title, the parts after it its foot.
   # `Lote Especial | # Pacotes com 40% OFF` has no foot, so the band takes the bottom corners.
   apelo: { type: rich-text, per: lamina }
-  # The line under the card, once for every artwork: the proof of approvals, say.
-  nota: { type: rich-text, max: 200 }
+  # The proof line, the proof of approvals, say. Written before the first `::lamina`, or after
+  # `::comum`, it is every artwork's; written inside a lamina it is that artwork's only, and
+  # replaces the shared one there (Tyto ADR 0225). Blocks are drawn in the order the brief writes
+  # them: a note after `::comum` goes under the card, one before the slides above it.
+  nota: { type: rich-text, per: lamina, shared: true, max: 200 }
   # The head's photograph, full bleed: a building, a stock image or a generated one.
   imagem: { type: image }
   # A teacher cut out with no background, drawn over the photograph. Not drawn yet.
   recorte: { type: image }
+# A block's weight (Tyto docs/slot-vocabulary.md, `peso`): `{peso: 1}` draws it at 0.85 of its
+# size, `{peso: 3}` at 1.2; the head never grows past the width its main line fills.
+adjustments:
+  peso: { type: enum, values: ['1', '2', '3'], default: '2', applies: [titulo, apelo, nota] }
 # What a configuration may change (Tyto ADR 0153). Each default is the reference's (piece 38 of
 # the study); `tests/values.test.ts` pins them equal to the ones the code falls back to.
 values:
