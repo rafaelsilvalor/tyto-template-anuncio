@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.56.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-WVETPC75.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.57.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-J7N3VCQP.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -20897,6 +20897,17 @@ var diagnosticCodes = {
     fatal: false,
     fatality: "A warning never replaces a value (ADR 0013)."
   },
+  // Raised by a template the same way (TYTO-837): two colours it draws text in, chosen by a
+  // brief or a configuration (ADR 0226), are too close to read well. A warning: the person
+  // chose the colours, and the frame is drawn in them.
+  W_TEMPLATE_LOW_CONTRAST: {
+    severity: "warning",
+    summary: "Two colours an artwork draws text in have too little contrast to read well.",
+    template: "Artwork '{artwork}' in format '{format}': '{foreground}' on '{background}' has a contrast of {ratio}:1, too little for template '{template}' to read well; the colours are kept.",
+    spec: "docs/adr/0058-a-template-reports-warnings-beside-its-frame.md",
+    fatal: false,
+    fatality: "A warning never replaces a value (ADR 0013)."
+  },
   W_EXTERNAL_ART_MISSING: {
     severity: "warning",
     summary: "A slot whose art is painted outside Tyto has no file yet, and an outlined box stands in for it (ADR 0220).",
@@ -20917,7 +20928,7 @@ var diagnosticCodes = {
   },
   W_TEMPLATE_VALUE_INVALID: {
     severity: "warning",
-    summary: "A configuration sets a declared value to one of the wrong kind or outside its limits.",
+    summary: "A configuration or a brief's frontmatter sets a declared value to one of the wrong kind or outside its limits.",
     template: "Value '{name}' of template '{template}' {problem}; the template's default is used.",
     spec: "docs/adr/0153-a-template-declares-its-configurable-values-in-its-manifest.md",
     fatal: false,
@@ -22281,8 +22292,28 @@ function colorValue(context, name, fallback) {
   const value = context.values?.[name];
   return typeof value === "string" ? value : fallback;
 }
+var HEX2 = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/iu;
+function relativeLuminance(hex3) {
+  const match2 = HEX2.exec(hex3);
+  if (match2 === null) return void 0;
+  let digits = match2[1];
+  if (digits.length <= 4) digits = [...digits].map((digit) => digit + digit).join("");
+  const channel2 = (at2) => {
+    const value = parseInt(digits.slice(at2, at2 + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel2(0) + 0.7152 * channel2(2) + 0.0722 * channel2(4);
+}
+function contrastRatio(a, b) {
+  const first = relativeLuminance(a);
+  const second = relativeLuminance(b);
+  if (first === void 0 || second === void 0) return void 0;
+  const lighter = Math.max(first, second);
+  const darker = Math.min(first, second);
+  return (lighter + 0.05) / (darker + 0.05);
+}
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.56.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.57.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -22384,7 +22415,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.12/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22421,7 +22452,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.17.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.18.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function sidesOf(padding) {
   if (typeof padding === "number") {
     return { top: padding, right: padding, bottom: padding, left: padding };
@@ -22710,7 +22741,7 @@ function trimmed(inline, side) {
 function markOf(part) {
   const first = part[0];
   if (first?.kind !== "text") return { words: part, level: 0 };
-  const match = /^(#{1,3})\s+/u.exec(first.value);
+  const match = /^(#{1,6})\s+/u.exec(first.value);
   if (match === null) return { words: part, level: 0 };
   const rest = first.value.slice(match[0].length);
   const start = Math.min(first.range.start + match[0].length, first.range.end);
@@ -22831,21 +22862,33 @@ var BODY_PARAMETERS = {
     description: "The room between two lines, or a line and the divider, at scale 1."
   }
 };
-function bodySize(level, sizes, parameters = {}) {
-  if (level !== 0) return sizes[level];
+function markedSize(level, sizes) {
+  for (let at2 = level; at2 >= 1; at2--) {
+    const size = sizes[at2];
+    if (size !== void 0) return size;
+  }
+  return sizes[1];
+}
+function bodySize(level, sizes, parameters = {}, used = [1, 2, 3]) {
+  if (level !== 0) return markedSize(level, sizes);
   const values = parameterValues(BODY_PARAMETERS, parameters);
-  return Math.min(sizes[1], sizes[2], sizes[3]) * values.unmarkedRatio;
+  const marked = used.filter((each) => each !== 0);
+  const reference = marked.length === 0 ? [1, 2, 3] : marked;
+  return Math.min(...reference.map((each) => markedSize(each, sizes))) * values.unmarkedRatio;
 }
 function bodyBlock(area, scale, options) {
   const items = levelsOf(options.words, { readByPosition: false });
   if (items.length === 0) return void 0;
+  const used = items.flatMap(
+    (item) => item.kind === "line" ? item.parts.map((part) => part.level) : []
+  );
   const values = parameterValues(BODY_PARAMETERS, options.parameters);
   const lineGap = options.lineGapBetween === void 0 ? values.lineGap * scale : typeof options.lineGapBetween === "number" ? options.lineGapBetween * scale : (above, below) => options.lineGapBetween(above, below) * scale;
   const drawn = levelStack(
     items,
     {
       name: options.name ?? "body",
-      look: (part) => options.look(part, bodySize(part.level, options.sizes, values) * scale),
+      look: (part) => options.look(part, bodySize(part.level, options.sizes, values, used) * scale),
       gap: values.partGap * scale,
       lineGap,
       ...options.divider === void 0 ? {} : { divider: (width) => options.divider(width, scale) }
@@ -22875,23 +22918,35 @@ var BLOCK_COLUMN_PARAMETERS = {
     choices: ["start", "center", "end"],
     description: "Where a block narrower than the area sits across it."
   },
-  lightWeight: {
+  weight1: {
     kind: "ratio",
-    default: 0.85,
+    default: 0.7,
     min: 0,
     description: "The scale of a block written with {peso: 1}."
   },
-  normalWeight: {
+  weight2: {
+    kind: "ratio",
+    default: 0.85,
+    min: 0,
+    description: "The scale of a block written with {peso: 2}."
+  },
+  weight3: {
     kind: "ratio",
     default: 1,
     min: 0,
-    description: "The scale of a block written with {peso: 2}, or with no peso."
+    description: "The scale of a block written with {peso: 3}, or with no peso: as designed."
   },
-  heavyWeight: {
+  weight4: {
     kind: "ratio",
     default: 1.2,
     min: 0,
-    description: "The scale of a block written with {peso: 3}."
+    description: "The scale of a block written with {peso: 4}."
+  },
+  weight5: {
+    kind: "ratio",
+    default: 1.4,
+    min: 0,
+    description: "The scale of a block written with {peso: 5}."
   },
   shrinkFloor: {
     kind: "ratio",
@@ -22912,11 +22967,15 @@ function weightOf(slot, parameters = {}) {
   const written = slot?.adjustments.find((adjustment) => adjustment.name === WEIGHT)?.value;
   switch (written) {
     case "1":
-      return values.lightWeight;
-    case "3":
-      return values.heavyWeight;
+      return values.weight1;
+    case "2":
+      return values.weight2;
+    case "4":
+      return values.weight4;
+    case "5":
+      return values.weight5;
     default:
-      return values.normalWeight;
+      return values.weight3;
   }
 }
 function columnOrder(entries, order) {
@@ -23136,7 +23195,7 @@ function heightOf(segment) {
   return Math.max(segment.minHeight ?? 0, segment.content.height);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.12/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -23172,7 +23231,7 @@ function drawLogo(kit, height, inks) {
   return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.11/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.12/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -23224,15 +23283,30 @@ var TABLE_VALUE_DEFAULTS = {
 
 // src/template.ts
 var COLOR_DEFAULTS = {
-  /** The exam's name, the card's outline and its band. */
-  accent: "#1363d0",
+  /** The exam's name, the accent levels, the card's outline and its band. */
+  destaque: "#1363d0",
   /** The panel under the words. */
-  paper: "#f7f4f4",
+  fundo: "#f7f4f4",
   /** Every word on the panel. */
-  ink: "#4d4d4d",
+  texto: "#4d4d4d",
   /** The words on the band. */
-  "on-accent": "#eceaea"
+  "texto-faixa": "#eceaea"
 };
+var CONTRAST_FLOOR = 3;
+var CONTRAST_PAIRS = [
+  ["texto-faixa", "destaque"],
+  ["destaque", "fundo"]
+];
+function reportContrast(context, ink) {
+  for (const [words, ground] of CONTRAST_PAIRS) {
+    const foreground = ink(words);
+    const background = ink(ground);
+    const ratio = contrastRatio(foreground, background);
+    if (ratio !== void 0 && ratio < CONTRAST_FLOOR) {
+      context.report({ code: "W_TEMPLATE_LOW_CONTRAST", foreground, background, ratio });
+    }
+  }
+}
 var FACE2 = { family: "CircularXX", source: "system" };
 var LIGHT = 300;
 var MEDIUM = 500;
@@ -23286,7 +23360,6 @@ var CARD_PADDING = 48;
 var CARD_RADIUS = 39;
 var FIT_FLOOR = 0.7;
 var NO_PHOTO = "#c9ccd2";
-var TRACKING = 0.8;
 var DOT = 12;
 var DOT_GAP = 10;
 var EMPTY = [];
@@ -23347,13 +23420,6 @@ var ANUNCIO_PARAMETERS = {
     min: 0,
     max: 1,
     description: "The most of the panel's room the head may take when its main line grows."
-  },
-  unmarkedRatio: {
-    kind: "ratio",
-    default: 0.8,
-    min: 0,
-    max: 1,
-    description: "A line with no # mark, in the title and in the body, as a share of the smallest marked size: the unmarked level is always the smallest (maintainer, 2026-11-22)."
   }
 };
 var build = (context) => {
@@ -23404,20 +23470,21 @@ var build = (context) => {
     parameters: { reach }
   });
   reportOverflow(context.report, column.overflow, 0);
+  reportContrast(context, ink);
   const panelTop = geometry.panelTop - column.rise;
-  const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink("accent")));
+  const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink("destaque")));
   return frame({
     format: context.format,
     size: context.size,
     idPrefix: context.idPrefix,
-    background: solid(ink("paper")),
+    background: solid(ink("fundo")),
     children: [
       photo(context, geometry),
       rect({
         name: "painel",
         size: { w: context.size.w, h: context.size.h - panelTop },
         radius: [geometry.panelRadius, geometry.panelRadius, 0, 0],
-        fill: solid(ink("paper")),
+        fill: solid(ink("fundo")),
         transform: { y: panelTop }
       }),
       at(TEXT_MARGIN, top - column.rise, column.block),
@@ -23443,7 +23510,7 @@ function head(context, ink, geometry, items, room, scale, headShare) {
       look: (part) => lookOf(part, geometry, ink, ratio),
       gap: geometry.partGap * ratio,
       lineGap: (above) => lineGapOf(above, geometry) * ratio,
-      divider: () => dots(ink("ink"), ratio)
+      divider: () => dots(ink("texto"), ratio)
     },
     room.width,
     context.measure
@@ -23468,54 +23535,46 @@ function lineGapOf(above, geometry) {
   const holdsName = above.kind === "line" && above.parts.some((part) => part.level === 1);
   return holdsName ? geometry.nameGap : geometry.lineGap;
 }
-function lookOf(part, geometry, ink, ratio) {
-  const look = (spot, weight, color2) => ({
-    style: styleOf(spot.size * ratio, weight, color2),
-    lineHeight: LINE_HEIGHT
-  });
-  const unmarked = { capTop: geometry.support.capTop, size: unmarkedSize(geometry) };
-  switch (part.level) {
-    case 1:
-      return { ...look(geometry.name, BLACK, ink("accent")), transform: upper };
-    case 2:
-      return part.position === "before" ? look(geometry.kicker, MEDIUM, ink("ink")) : look(geometry.salary, MEDIUM, ink("ink"));
-    case 3:
-      return look(geometry.support, MEDIUM, ink("ink"));
-    default:
-      return part.position === "before" ? {
-        ...look(unmarked, LIGHT, ink("accent")),
-        letterSpacing: unmarked.size * ratio * TRACKING,
-        transform: upper
-      } : look(unmarked, LIGHT, ink("ink"));
-  }
-}
-function markedSizes(geometry) {
+var LEVEL_STYLES = {
+  1: { ratio: 1, weight: BLACK, color: "destaque", tracking: 0, upper: true },
+  2: { ratio: 0.75, weight: MEDIUM, color: "texto", tracking: 0, upper: false },
+  3: { ratio: 0.56, weight: MEDIUM, color: "texto", tracking: 0, upper: false },
+  4: { ratio: 0.48, weight: BLACK, color: "destaque", tracking: 0, upper: false },
+  5: { ratio: 0.48, weight: LIGHT, color: "texto", tracking: 0, upper: false },
+  6: { ratio: 0.44, weight: LIGHT, color: "destaque", tracking: 0.3, upper: true },
+  0: { ratio: 0.4, weight: LIGHT, color: "texto", tracking: 0, upper: false }
+};
+function styled2(part, size, ink) {
+  const style2 = LEVEL_STYLES[part.level];
   return {
-    1: geometry.name.size,
-    2: Math.min(geometry.kicker.size, geometry.salary.size),
-    3: geometry.support.size
+    style: styleOf(size, style2.weight, ink(style2.color)),
+    lineHeight: LINE_HEIGHT,
+    ...style2.tracking === 0 ? {} : { letterSpacing: size * style2.tracking },
+    ...style2.upper ? { transform: upper } : {}
   };
 }
-function unmarkedSize(geometry) {
-  const { unmarkedRatio } = parameterValues(ANUNCIO_PARAMETERS);
-  return bodySize(0, markedSizes(geometry), { unmarkedRatio });
+function lookOf(part, geometry, ink, ratio) {
+  return styled2(part, geometry.name.size * LEVEL_STYLES[part.level].ratio * ratio, ink);
 }
 function body(context, ink, geometry, words, room, scale) {
-  const { unmarkedRatio } = parameterValues(ANUNCIO_PARAMETERS);
-  const sizes = markedSizes(geometry);
+  const name = geometry.name.size;
+  const size = (level) => name * LEVEL_STYLES[level].ratio;
+  const used = levelsOf(words, { readByPosition: false }).flatMap(
+    (item) => item.kind === "line" ? item.parts.map((part) => part.level) : []
+  );
+  const marked = used.filter((level) => level !== 0);
+  const smallest = Math.min(
+    ...(marked.length === 0 ? [1, 2, 3] : marked).map(
+      (level) => LEVEL_STYLES[level].ratio
+    )
+  );
+  const unmarkedRatio = Math.min(1, LEVEL_STYLES[0].ratio / smallest);
   return bodyBlock(room, scale, {
     words,
-    sizes: { 1: sizes[1], 2: geometry.salary.size, 3: sizes[3] },
-    look: (part, size) => ({
-      style: styleOf(
-        size,
-        part.level === 1 ? BLACK : part.level === 0 ? LIGHT : MEDIUM,
-        part.level === 1 ? ink("accent") : ink("ink")
-      ),
-      lineHeight: LINE_HEIGHT
-    }),
+    sizes: { 1: size(1), 2: size(2), 3: size(3), 4: size(4), 5: size(5), 6: size(6) },
+    look: (part, drawn) => styled2(part, drawn, ink),
     measure: context.measure,
-    divider: (_width, ratio) => dots(ink("ink"), ratio),
+    divider: (_width, ratio) => dots(ink("texto"), ratio),
     parameters: { unmarkedRatio, partGap: geometry.partGap, lineGap: geometry.lineGap },
     name: "corpo"
   });
@@ -23540,7 +23599,7 @@ function offer(context, ink, geometry, items, scale, padding) {
         return fitted(context, "faixa-texto", words(parts), {
           size: geometry.bandText.size * scale,
           weight: BLACK,
-          color: ink("on-accent"),
+          color: ink("texto-faixa"),
           inner,
           shrink: true
         });
@@ -23548,7 +23607,7 @@ function offer(context, ink, geometry, items, scale, padding) {
         return fitted(context, "oferta", words(parts), {
           size: geometry.title.size * scale,
           weight: LIGHT,
-          color: ink("ink"),
+          color: ink("texto"),
           inner,
           shrink: true
         });
@@ -23556,7 +23615,7 @@ function offer(context, ink, geometry, items, scale, padding) {
         return fitted(context, "rodape", words(parts), {
           size: geometry.foot.size * scale,
           weight: LIGHT,
-          color: ink("ink"),
+          color: ink("texto"),
           inner,
           shrink: false
         });
@@ -23572,10 +23631,10 @@ function offer(context, ink, geometry, items, scale, padding) {
     name: "cartao",
     width: card2.w,
     radius: CARD_RADIUS,
-    stroke: { paint: solid(ink("accent")), width: 2, align: "inside" },
+    stroke: { paint: solid(ink("destaque")), width: 2, align: "inside" },
     band: {
       name: "faixa",
-      fill: solid(ink("accent")),
+      fill: solid(ink("destaque")),
       effects: [
         { kind: "shadow", x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } }
       ]
@@ -23588,7 +23647,7 @@ function note(context, ink, geometry, words, room, scale) {
     words,
     room.width,
     0,
-    styleOf(geometry.proof.size * scale, LIGHT, ink("ink")),
+    styleOf(geometry.proof.size * scale, LIGHT, ink("texto")),
     context.measure,
     { name: "nota", align: "center", lineHeight: LINE_HEIGHT, overflow: "grow" }
   );

@@ -24,19 +24,32 @@ this one until they arrive, with the kit pieces they consume (Tyto TYTO-797 to T
 **The brief speaks Tyto's shared vocabulary** (Tyto `docs/slot-vocabulary.md`), so what a
 writer learned in another template holds here:
 
-- **`::titulo`**, once, is the head, ranked by its marks and read by the kit's `levelsOf`: `|`
-  between the parts of a line; `#` the exam's name, in capitals and the accent; `##` before it
-  the status line, after it the salary; `###` a stronger supporting line; an unmarked part a
-  supporting line, or, before the name, a tracked label in the accent; a line of `---` the three
-  dots. The first line with no mark is read by position; a later unmarked line is supporting.
+- **`::titulo`** is the head, ranked by its marks and read by the kit's `levelsOf`: `|` between
+  the parts of a line, `#` to `######` six levels and an unmarked part a seventh; a line of `---`
+  the three dots. The first line with no mark is read by position; a later unmarked line is
+  supporting. Shared before the slides or after `::comum`; written inside a `::lamina` it is
+  that artwork's own and replaces the shared one there (Tyto ADR 0225).
+- **Each level has its look** (TYTO-836): a share of the exam's name size, a weight, a colour.
+
+  | Level    | Size         | Weight                   | Colour     | Use                        |
+  | -------- | ------------ | ------------------------ | ---------- | -------------------------- |
+  | `#`      | 1            | Black, capitals          | `destaque` | the exam's name            |
+  | `##`     | 0.75         | Medium                   | `texto`    | status, salary             |
+  | `###`    | 0.56         | Medium                   | `texto`    | a stronger supporting line |
+  | `####`   | 0.48         | Black                    | `destaque` | a highlight in the accent  |
+  | `#####`  | 0.48         | Light                    | `texto`    | a quiet line               |
+  | `######` | 0.44         | Light, capitals, tracked | `destaque` | a label before the name    |
+  | none     | 0.40 at most | Light                    | `texto`    | the smallest line          |
+
+  An unmarked line is never larger than the smallest marked level its block uses, so the marks
+  keep their weight.
+
 - **`::corpo`** is the general information under the title — vacancies, exam board, roles,
   salary — in the same marks, as a block of its own (Tyto TYTO-832, the kit's `bodyBlock`): it
   keeps its sizes when the exam's name grows or shrinks to fit, and takes its own `peso`. Its
   first line is a fact, never a name. Shared before the slides or after `::comum`, a slide's own
   inside a `::lamina`. A brief with no `::corpo` draws every line in the title, as 0.4.0 did.
-- **A line with no mark is the smallest**, in the title and in the body: the smallest marked
-  size times 0.8 (`unmarkedRatio`), so `#`, `##` and `###` carry the weight.
-- **`::lamina`**, one per artwork, then its **`::apelo`**: the card takes the shape of the
+- **`::lamina`**, one per artwork, and the **`::apelo`**, the slide's own or shared: the card takes the shape of the
   line's parts. The main part is the band, the parts before it the title, the parts after it
   the foot, and the band takes the corners of the edge it reaches; the kit's `card` draws it.
   Band and title words shrink to one line before they wrap, and a segment grows to hold them.
@@ -45,9 +58,9 @@ writer learned in another template holds here:
   inside a `::lamina` it is that artwork's only and replaces the shared one there. A note
   written before the first slide is every artwork's too, and is drawn **above** the card, since
   the brief is read top to bottom as the art.
-- **`{peso: 1}`, `{peso: 3}`** on `::titulo`, `::apelo` or `::nota` draw that block at 0.85 or
-  1.2 of its size (Tyto `docs/slot-vocabulary.md`, `peso`); the head never grows past the width
-  its main line fills.
+- **`{peso: 1}` to `{peso: 5}`** on any block, 3 the designed size: 1 draws it at 0.7, 2 at
+  0.85, 4 at 1.2, 5 at 1.4 (Tyto `docs/slot-vocabulary.md`, `peso`); the head never grows past
+  the width its main line fills.
 
 `**…**` is bold wherever it is written. The words are never changed: the marks only rank them.
 
@@ -93,6 +106,12 @@ formats: [grid, story]
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
 
+**0.6.0 gives every level its look and the colours their brief names:** six title levels,
+`peso` 1 to 5 with 3 the old default (a 0.5 brief's `{peso: 1}` now draws at 0.7, `{peso: 3}`
+at the designed size), `::titulo` and `::apelo` shared or a slide's own, and the colours renamed
+`destaque`, `fundo`, `texto`, `texto-faixa` (a configuration that set `accent`, `paper` or `ink`
+sets the new names). A low-contrast pair is reported.
+
 **0.5.0 adds `::corpo`:** the title keeps the exam's name and its status; vacancies, board,
 roles and salary go in `::corpo` under it. A 0.4 brief still draws, every line in the title,
 and its unmarked lines come out a little smaller than before.
@@ -123,9 +142,15 @@ measures and draws its bundled substitute and needs no permission.
   `oferta` (`cartao`, `dupla`, `lista`, `chamada`, `impacto`) are enum slots. A named variant is
   a configuration of the plugin file whose `brief.slots` defaults them, with an alias such as
   `anuncio-vitrine-cartao`; the brief may still write either one, and the brief wins.
-- **The colours, as `values`** (Tyto ADR 0153): `accent`, `paper` and `ink`. Each default is the
-  constant the code falls back to, pinned by `tests/values.test.ts`. A configuration changes a
-  value, never which pieces appear or their order (Tyto ADR 0151).
+- **The colours, as `values`** (Tyto ADR 0153): `destaque`, `fundo`, `texto` and `texto-faixa`.
+  Each default is the constant the code falls back to, pinned by `tests/values.test.ts`. A
+  brief's frontmatter may set them too, quoted (`destaque: '#e30613'`, Tyto ADR 0226), and wins
+  over the configuration. A configuration changes a value, never which pieces appear or their
+  order (Tyto ADR 0151).
+- **Too little contrast is a warning, never a change.** The band's words on `destaque`, and
+  `destaque` on `fundo`, are measured (WCAG 2, Tyto's `contrastRatio`); under 3:1, WCAG's floor
+  for large text, the render reports `W_TEMPLATE_LOW_CONTRAST` and keeps the colours. A yellow
+  accent warns on both pairs; the house red does not.
 
 ## Development
 

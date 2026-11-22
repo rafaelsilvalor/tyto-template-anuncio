@@ -4,7 +4,7 @@ import { defineTemplate, formatCatalogue, parseManifest } from '@tyto/core';
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
-import { COLOR_DEFAULTS, build } from '../src/template.js';
+import { COLOR_DEFAULTS, CONTRAST_FLOOR, build } from '../src/template.js';
 
 import type { SuppliedValues } from '@tyto/core';
 
@@ -20,7 +20,7 @@ if (!manifest.ok) throw new Error(manifest.error.map((item) => item.message).joi
 const template = defineTemplate(manifest.value, build);
 const formats = formatCatalogue({ grid: { w: 1080, h: 1350, kind: 'grid' } });
 
-const html = async (values?: SuppliedValues): Promise<string> => {
+const compiled = async (values?: SuppliedValues) => {
   const result = await compileTemplate({
     brief: read('../templates/anuncio/examples/duas-versoes.brief').replace(
       'formats: [grid, story]',
@@ -31,8 +31,16 @@ const html = async (values?: SuppliedValues): Promise<string> => {
     ...(values === undefined ? {} : { values }),
   });
   if (!result.ok) throw new Error(result.error.map((item) => item.message).join('\n'));
-  return result.value.frames[0]!.html;
+  return result;
 };
+
+const contrastWarnings = async (values?: SuppliedValues): Promise<string[]> =>
+  (await compiled(values)).diagnostics
+    .filter((item) => item.code === 'W_TEMPLATE_LOW_CONTRAST')
+    .map((item) => item.message);
+
+const html = async (values?: SuppliedValues): Promise<string> =>
+  (await compiled(values)).value.frames[0]!.html;
 
 describe('declared values', () => {
   const declared = manifest.value.values ?? {};
@@ -52,9 +60,39 @@ describe('declared values', () => {
   });
 
   it('paints the paper a configured colour, found in the HTML', async () => {
-    const painted = await html({ paper: { value: '#123456' } });
+    const painted = await html({ fundo: { value: '#123456' } });
 
     expect(painted).toContain('#123456');
     expect(await html()).not.toContain('#123456');
+  });
+});
+
+describe('the contrast warning (TYTO-836)', () => {
+  it('says nothing for the default colours or the house red', async () => {
+    expect(await contrastWarnings()).toEqual([]);
+    expect(await contrastWarnings({ destaque: { value: '#e30613' } })).toEqual([]);
+  });
+
+  // The example brief draws two artworks, and each reports its own pairs.
+  it('warns once per pair and artwork for a yellow accent, keeping the colour', async () => {
+    const warnings = await contrastWarnings({ destaque: { value: '#f2c200' } });
+
+    expect(warnings).toHaveLength(4);
+    expect(warnings[0]).toContain("'#eceaea' on '#f2c200'");
+    expect(warnings[0]).toContain('1.4:1');
+    expect(warnings[1]).toContain("'#f2c200' on '#f7f4f4'");
+    expect(await html({ destaque: { value: '#f2c200' } })).toContain('#f2c200');
+  });
+
+  it('warns only for the pair under the floor', async () => {
+    // Band words in the accent itself: 1:1; the accent on the panel still reads.
+    const warnings = await contrastWarnings({ 'texto-faixa': { value: '#1363d0' } });
+
+    expect(warnings).toHaveLength(2);
+    for (const warning of warnings) expect(warning).toContain("'#1363d0' on '#1363d0'");
+  });
+
+  it('keeps the floor at WCAG 2 large text', () => {
+    expect(CONTRAST_FLOOR).toBe(3);
   });
 });
