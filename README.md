@@ -28,7 +28,7 @@ writer learned in another template holds here:
   the parts of a line, `#` to `######` six levels and an unmarked part a seventh; a line of `---`
   the three dots. The first line with no mark is read by position; a later unmarked line is
   supporting. Shared before the slides or after `::comum`; written inside a `::lamina` it is
-  that artwork's own and replaces the shared one there (Tyto ADR 0225).
+  that artwork's own and adds to the shared one there (Tyto ADR 0227).
 - **Each level has its look** (TYTO-836): a share of the exam's name size, a weight, a colour.
 
   | Level    | Size         | Weight                   | Colour     | Use                        |
@@ -49,13 +49,17 @@ writer learned in another template holds here:
   keeps its sizes when the exam's name grows or shrinks to fit, and takes its own `peso`. Its
   first line is a fact, never a name. Shared before the slides or after `::comum`, a slide's own
   inside a `::lamina`. A brief with no `::corpo` draws every line in the title, as 0.4.0 did.
+- **Several `::corpo`, each with its own `peso`** (0.7.0, Tyto ADR 0227): the vacancies and the
+  salary as two blocks, say. Name a shared one with `{nome: vagas}` and, inside a slide, an
+  empty `::corpo {nome: vagas}` draws it right there; a slide that places none draws the shared
+  bodies under the title. Several adjustments share one brace: `{nome: salario, peso: 4}`.
 - **`::lamina`**, one per artwork, and the **`::apelo`**, the slide's own or shared: the card takes the shape of the
   line's parts. The main part is the band, the parts before it the title, the parts after it
   the foot, and the band takes the corners of the edge it reaches; the kit's `card` draws it.
   Band and title words shrink to one line before they wrap, and a segment grows to hold them.
 - **`::nota`** is the proof line, shared or a slide's own (Tyto ADR 0225). Written after
   `::comum`, which closes the slides, it is every artwork's and goes under the card; written
-  inside a `::lamina` it is that artwork's only and replaces the shared one there. A note
+  inside a `::lamina` it is that artwork's own and adds to the shared one there. A note
   written before the first slide is every artwork's too, and is drawn **above** the card, since
   the brief is read top to bottom as the art.
 - **`{peso: 1}` to `{peso: 5}`** on any block, 3 the designed size: 1 draws it at 0.7, 2 at
@@ -105,6 +109,11 @@ formats: [grid, story]
 
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
+
+**0.7.0 adds blocks up and places them by name:** a block written inside a slide now comes
+with the shared one of its kind instead of replacing it, `::corpo` may be written several times,
+and a named shared block is placed per slide by an empty directive (Tyto ADR 0227). A 0.6 brief
+that wrote the same block both outside and inside a slide now draws both there.
 
 **0.6.0 gives every level its look and the colours their brief names:** six title levels,
 `peso` 1 to 5 with 3 the old default (a 0.5 brief's `{peso: 1}` now draws at 0.7, `{peso: 3}`

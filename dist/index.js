@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.57.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-J7N3VCQP.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.58.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-6A2A6GIW.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -19792,6 +19792,16 @@ var diagnosticCodes = {
     spec: "docs/brief-language.md",
     fatal: false,
     fatality: "One line: what it carries is ignored, and a misplaced one closes nothing while the rest of the brief is read as written."
+  },
+  // An error, not a warning (ADR 0227): an anchor that places nothing would leave the block
+  // off that artwork without a word.
+  E_BAD_BLOCK_NAME: {
+    severity: "error",
+    summary: "A shared block's name, or an empty directive that places one on a slide, does not name a shared block once.",
+    template: "'::{slot}' {problem}.",
+    spec: "docs/adr/0227-shared-and-slide-blocks-add-up-and-a-named-block-is-placed-by-name.md",
+    fatal: false,
+    fatality: "One line: the name or the anchor is ignored, and the shared block is drawn where it was written."
   },
   E_UNKNOWN_SLOT: {
     severity: "error",
@@ -22313,7 +22323,7 @@ function contrastRatio(a, b) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.57.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.58.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -22415,7 +22425,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.12/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.13/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22452,7 +22462,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.18.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.19.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function sidesOf(padding) {
   if (typeof padding === "number") {
     return { top: padding, right: padding, bottom: padding, left: padding };
@@ -22989,6 +22999,32 @@ function columnOrder(entries, order) {
   const queue = [...written];
   return entries.map((entry) => written.includes(entry) ? queue.shift() : entry);
 }
+function entriesInOrder(order, kinds, fallback = []) {
+  if (order === void 0 || order.some((placed2) => placed2.slot === void 0)) {
+    return columnOrder(fallback, order);
+  }
+  const placed = [];
+  for (const block2 of order) {
+    const kind = kinds[block2.name];
+    const built = block2.slot === void 0 || kind === void 0 ? void 0 : kind(block2.slot);
+    if (built !== void 0) placed.push({ name: block2.name, ...built });
+  }
+  const written = new Set(placed.map((entry) => entry.name));
+  const result = [];
+  let next = 0;
+  let lastWritten = -1;
+  for (const entry of fallback) {
+    if (written.has(entry.name)) {
+      if (next < placed.length) result.push(placed[next++]);
+      lastWritten = result.length;
+      continue;
+    }
+    result.push(entry);
+  }
+  const rest = placed.slice(next);
+  result.splice(lastWritten < 0 ? result.length : lastWritten, 0, ...rest);
+  return result;
+}
 function blockColumn(area, options) {
   const values = parameterValues(BLOCK_COLUMN_PARAMETERS, options.parameters);
   const entries = columnOrder(options.entries, options.order);
@@ -23195,7 +23231,7 @@ function heightOf(segment) {
   return Math.max(segment.minHeight ?? 0, segment.content.height);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.12/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.13/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -23231,7 +23267,7 @@ function drawLogo(kit, height, inks) {
   return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.12/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.13/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -23363,10 +23399,6 @@ var NO_PHOTO = "#c9ccd2";
 var DOT = 12;
 var DOT_GAP = 10;
 var EMPTY = [];
-function wordsOf(context, name) {
-  const value = context.slots[name]?.value;
-  return value?.kind === "rich-text" ? value.text : EMPTY;
-}
 function joined(parts) {
   return parts.flatMap((part, index) => {
     if (index === 0) return [...part];
@@ -23432,38 +23464,48 @@ var build = (context) => {
     height: geometry.logo.top - values.noteGap - top
   };
   const reach = Math.max(0, geometry.panelTop - context.size.h * values.photoShare);
-  const titulo = levelsOf(wordsOf(context, "titulo"));
-  const corpo = wordsOf(context, "corpo");
-  const apelo = levelsOf(wordsOf(context, "apelo"));
-  const nota = wordsOf(context, "nota");
-  const entries = [
-    {
-      name: "titulo",
-      scale: weightOf(context.slots["titulo"]),
-      build: (room, scale) => head(context, ink, geometry, titulo, room, scale, values.headShare)
+  const textOf = (slot) => slot.value.kind === "rich-text" ? slot.value.text : EMPTY;
+  const kinds = {
+    titulo: (slot) => {
+      const items = levelsOf(textOf(slot));
+      return {
+        scale: weightOf(slot),
+        build: (room, scale) => head(context, ink, geometry, items, room, scale, values.headShare)
+      };
     },
-    {
-      name: "corpo",
-      scale: weightOf(context.slots["corpo"]),
-      build: (room, scale) => body(context, ink, geometry, corpo, room, scale)
+    corpo: (slot) => {
+      const words = textOf(slot);
+      return {
+        scale: weightOf(slot),
+        build: (room, scale) => body(context, ink, geometry, words, room, scale)
+      };
     },
-    {
-      name: "apelo",
-      scale: weightOf(context.slots["apelo"]),
-      build: (_room, scale) => offer(context, ink, geometry, apelo, scale, values.segmentPadding * scale)
+    apelo: (slot) => {
+      const items = levelsOf(textOf(slot));
+      return {
+        scale: weightOf(slot),
+        build: (_room, scale) => offer(context, ink, geometry, items, scale, values.segmentPadding * scale)
+      };
     },
-    {
-      name: "nota",
-      scale: weightOf(context.slots["nota"]),
-      build: (room, scale) => note(context, ink, geometry, nota, room, scale)
+    nota: (slot) => {
+      const words = textOf(slot);
+      return {
+        scale: weightOf(slot),
+        build: (room, scale) => note(context, ink, geometry, words, room, scale)
+      };
     }
-  ];
+  };
+  const fallback = ["titulo", "corpo", "apelo", "nota"].map((name) => {
+    const slot = context.slots[name];
+    const built = slot === void 0 ? void 0 : kinds[name]?.(slot);
+    return { name, build: built?.build ?? (() => void 0), scale: built?.scale ?? 1 };
+  });
   const column = blockColumn(area, {
     name: "coluna",
-    entries,
-    order: context.order,
+    entries: entriesInOrder(context.order, kinds, fallback),
     gapBetween: (above, below) => {
       if (above === "titulo" && below === "corpo") return geometry.nameGap;
+      if (above === below && (above === "titulo" || above === "corpo")) return geometry.nameGap;
       const isHead = (name) => name === "titulo" || name === "corpo";
       return isHead(above) || isHead(below) ? values.headGap : geometry.proofGap;
     },

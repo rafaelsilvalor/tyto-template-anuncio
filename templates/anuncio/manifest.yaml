@@ -1,5 +1,5 @@
 name: anuncio
-version: 0.6.0
+version: 0.7.0
 description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
@@ -23,14 +23,16 @@ slots:
   # part a supporting line, or before the name a tracked label; a line of `---` the dots. The
   # first line with no mark is read by position; a later unmarked line is a supporting line.
   # Shared before the slides or after `::comum`; written inside a `::lamina` it is that
-  # artwork's own and replaces the shared one there (ADR 0225), so one brief can hold two exams'
-  # heads over the same offer.
+  # artwork's own and adds to the shared one there (Tyto ADR 0227): a status line only one
+  # artwork carries goes inside that `::lamina`.
   titulo: { type: rich-text, per: lamina, shared: true, required: true, max: 600 }
   # The general information under the title (Tyto docs/slot-vocabulary.md, `corpo`): vacancies,
   # exam board, roles, salary, in the head's levels; a line with no mark is drawn smallest.
   # Shared before the slides or after `::comum`, a slide's own inside a `::lamina` (ADR 0225).
   # Without it, the title draws every line, as 0.4.0 did.
-  corpo: { type: rich-text, per: lamina, shared: true, max: 600 }
+  # Several, each with its own `peso`, named with `{nome: vagas}` and placed per slide by an
+  # empty `::corpo {nome: vagas}` (Tyto ADR 0227); a slide's own adds to the shared ones.
+  corpo: { type: rich-text, per: lamina, shared: true, multiple: true }
   # One artwork each: the offer version and the timeless one are two `::lamina`. A lamina holds
   # no lines of its own; its blocks follow it. `max` counts artworks.
   lamina: { type: rich-text, repeat: true, min: 1, max: 4 }
