@@ -101,14 +101,27 @@ interface Built {
   readonly reports: TemplateReport[];
 }
 
-function slot(name: string, source: string) {
-  return { name, value: { kind: 'rich-text' as const, text: rich(source) }, adjustments: [] };
+function slot(name: string, source: string, peso?: string) {
+  return {
+    name,
+    value: { kind: 'rich-text' as const, text: rich(source) },
+    adjustments:
+      peso === undefined ? [] : [{ name: 'peso', value: peso, range: { start: 0, end: 0 } }],
+  };
 }
 
-function render(
-  brief: { titulo: string; apelo?: string; nota?: string },
-  format: keyof typeof FORMATS = 'grid',
-): Built {
+type BlockName = 'titulo' | 'apelo' | 'nota';
+
+interface Brief {
+  readonly titulo: string;
+  readonly apelo?: string;
+  readonly nota?: string;
+  /** The brief's order, as `context.order` carries it (Tyto ADR 0225). */
+  readonly order?: readonly BlockName[];
+  readonly peso?: Partial<Record<BlockName, '1' | '2' | '3' | undefined>>;
+}
+
+function render(brief: Brief, format: keyof typeof FORMATS = 'grid'): Built {
   const reports: TemplateReport[] = [];
   const frame = build({
     format,
@@ -116,11 +129,16 @@ function render(
     idPrefix: `lamina-0-${format}`,
     artwork: { id: 'lamina-0', index: 0, count: 1 },
     slots: {
-      titulo: slot('titulo', brief.titulo),
+      titulo: slot('titulo', brief.titulo, brief.peso?.titulo),
       lamina: slot('lamina', ''),
-      ...(brief.apelo === undefined ? {} : { apelo: slot('apelo', brief.apelo) }),
-      ...(brief.nota === undefined ? {} : { nota: slot('nota', brief.nota) }),
+      ...(brief.apelo === undefined
+        ? {}
+        : { apelo: slot('apelo', brief.apelo, brief.peso?.apelo) }),
+      ...(brief.nota === undefined ? {} : { nota: slot('nota', brief.nota, brief.peso?.nota) }),
     },
+    ...(brief.order === undefined
+      ? {}
+      : { order: brief.order.map((name) => ({ name, place: 'own' as const })) }),
     adjustments: {},
     measure: proportional,
     report: (report) => reports.push(report),
@@ -279,18 +297,16 @@ describe('the card takes the shape of the apelo’s parts', () => {
     expect(layOut(find(frame, 'Todos os pacotes')!.node)).toHaveLength(1);
   });
 
-  it('grows the card upward when its title wraps, keeping the band in its place', () => {
+  it('grows the card when its title wraps, the title kept inside it above the band', () => {
     const title = 'Pacote completo com teoria, questões e fórum '.repeat(3);
     const plainCard = rectNamed(render({ titulo: HEAD, apelo: OFFER }).frame, 'cartao')!;
-    const plainBand = rectNamed(render({ titulo: HEAD, apelo: OFFER }).frame, 'faixa')!;
     const { frame, reports } = render({ titulo: HEAD, apelo: `${title} | # Pacotes com 40% OFF` });
     const card = rectNamed(frame, 'cartao')!;
     const band = rectNamed(frame, 'faixa')!;
     const drawn = find(frame, 'Pacote completo')!;
 
-    expect(card.y).toBeLessThan(plainCard.y);
-    expect(band.y).toBe(plainBand.y);
-    expect(drawn.y).toBeGreaterThanOrEqual(card.y);
+    expect(card.h).toBeGreaterThan(plainCard.h);
+    expect(drawn.y).toBeGreaterThan(card.y);
     expect(bottomOf(drawn)).toBeLessThanOrEqual(band.y);
     expect(reports.filter((report) => report.code === 'W_TEMPLATE_OVERFLOW')).toEqual([]);
   });
@@ -308,16 +324,15 @@ describe.each(['grid', 'story'] as const)('a band whose words wrap, in the %s fo
     expect(layOut(words.node).length).toBeGreaterThan(1);
   });
 
-  it('grows the band upward by the extra lines, its bottom edge where it was', () => {
-    expect(band.h).toBeGreaterThan(plainBand.h);
-    expect(band.y + band.h).toBe(plainBand.y + plainBand.h);
+  it('keeps the band at least the reference’s height, holding both lines', () => {
+    expect(band.h).toBeGreaterThanOrEqual(plainBand.h);
+    expect(bottomOf(words) - words.y).toBeGreaterThan(sizeOf(words.node));
   });
 
   it('keeps every band word inside the band, and the title above it', () => {
     expect(words.y).toBeGreaterThanOrEqual(band.y);
     expect(bottomOf(words)).toBeLessThanOrEqual(band.y + band.h);
     expect(bottomOf(find(frame, 'Comece antes')!)).toBeLessThanOrEqual(band.y);
-    expect(rectNamed(frame, 'cartao')!.y).toBeLessThan(rectNamed(plain, 'cartao')!.y);
   });
 
   it('reports no overflow', () => {
@@ -334,12 +349,15 @@ describe.each([
   const support = find(frame, 'Vagas para')!;
   const salary = find(frame, 'R$ 9,2 mil')!;
 
+  // The gaps follow the head's scale, read off the name's size against the reference's.
+  const ratio = sizeOf(name.node) / geometry.name.size;
+
   it('leaves the name’s own room under the # line', () => {
-    expect(support.y - bottomOf(name)).toBeCloseTo(geometry.nameGap, 5);
+    expect(support.y - bottomOf(name)).toBeCloseTo(geometry.nameGap * ratio, 5);
   });
 
   it('leaves the smaller room between the supporting line and the salary', () => {
-    expect(salary.y - bottomOf(support)).toBeCloseTo(geometry.lineGap, 5);
+    expect(salary.y - bottomOf(support)).toBeCloseTo(geometry.lineGap * ratio, 5);
   });
 });
 
@@ -357,21 +375,25 @@ describe('the head at the limits of its slot', () => {
     }
   });
 
-  it('raises the panel over the photograph to make room for the head', () => {
-    const name = 'Concurso Prefeitura Municipal de Lagoa Santa do Norte Mineiro';
-    const plain = rectNamed(render({ titulo: HEAD, apelo: OFFER }).frame, 'painel')!;
-    const { frame } = render({
-      titulo: HEAD.replace('Concurso QC Regula', name),
-      apelo: OFFER,
-    });
+  it('shrinks every block before it raises the panel, and keeps a quarter for the photograph', () => {
+    const support = Array.from({ length: 14 }, (_, index) => `Cargo de apoio ${index + 1}`);
+    const plain = render({ titulo: HEAD, apelo: OFFER }).frame;
+    const { frame, reports } = render({ titulo: [HEAD, ...support].join('\n'), apelo: OFFER });
+    const panel = rectNamed(frame, 'painel')!;
 
-    expect(rectNamed(frame, 'painel')!.y).toBeLessThan(plain.y);
+    expect(panel.y).toBeLessThan(rectNamed(plain, 'painel')!.y);
+    expect(panel.y).toBeGreaterThanOrEqual(FORMATS.grid.h * 0.25);
+    expect(sizeOf(find(frame, 'Pacotes com')!.node)).toBeLessThan(
+      sizeOf(find(plain, 'Pacotes com')!.node),
+    );
+    expect(reports.filter((report) => report.code === 'W_TEMPLATE_OVERFLOW')).toEqual([]);
   });
 
-  it('reports an overflow when the supporting lines grow into the card', () => {
-    const support = Array.from({ length: 8 }, (_, index) => `Cargo de apoio ${index + 1}`);
-    const { reports } = render({ titulo: [HEAD, ...support].join('\n'), apelo: OFFER });
+  it('reports an overflow when the floor and the photograph’s quarter leave no room', () => {
+    const support = Array.from({ length: 30 }, (_, index) => `Cargo de apoio ${index + 1}`);
+    const { frame, reports } = render({ titulo: [HEAD, ...support].join('\n'), apelo: OFFER });
 
+    expect(rectNamed(frame, 'painel')!.y).toBeCloseTo(FORMATS.grid.h * 0.25, 5);
     expect(reports.some((report) => report.code === 'W_TEMPLATE_OVERFLOW')).toBe(true);
   });
 
@@ -386,5 +408,58 @@ describe('the head at the limits of its slot', () => {
     expect(dot.y).toBeGreaterThan(find(frame, 'QC REGULA')!.y);
     expect(dot.y).toBeLessThan(find(frame, 'R$ 9,2 mil')!.y);
     expect(find(frame, 'Estude como')!.y).toBeGreaterThan(find(frame, 'Por tempo')!.y);
+  });
+});
+
+describe('the blocks as the brief wrote them', () => {
+  it('draws the note above the card when the brief wrote it first', () => {
+    const { frame } = render({
+      titulo: HEAD,
+      apelo: OFFER,
+      nota: 'Estude como 7 a cada 10',
+      order: ['titulo', 'nota', 'apelo'],
+    });
+    expect(find(frame, 'Estude como')!.y).toBeLessThan(rectNamed(frame, 'cartao')!.y);
+  });
+
+  it('draws the note below the card when the brief wrote it last', () => {
+    const { frame } = render({
+      titulo: HEAD,
+      apelo: OFFER,
+      nota: 'Estude como 7 a cada 10',
+      order: ['titulo', 'apelo', 'nota'],
+    });
+    const card = rectNamed(frame, 'cartao')!;
+    expect(find(frame, 'Estude como')!.y).toBeGreaterThan(card.y + card.h);
+  });
+
+  it('keeps the head’s gap between the head and the card, whatever room is left', () => {
+    const { frame } = render({ titulo: HEAD, apelo: OFFER });
+    const card = rectNamed(frame, 'cartao')!;
+    expect(card.y - bottomOf(find(frame, 'R$ 9,2 mil')!)).toBeCloseTo(56, 5);
+  });
+
+  it('draws a block written {peso: 1} smaller and {peso: 3} larger', () => {
+    const size = (peso?: '1' | '3') =>
+      sizeOf(
+        find(render({ titulo: HEAD, apelo: OFFER, peso: { apelo: peso } }).frame, 'Por tempo')!
+          .node,
+      );
+    expect(size('1')).toBeLessThan(size());
+    expect(size('3')).toBeGreaterThan(size());
+  });
+});
+
+describe('the main line', () => {
+  it('grows a short exam name until it fills the width, up to 1.6 of the reference', () => {
+    const { frame } = render({ titulo: '# PF', apelo: OFFER });
+    expect(sizeOf(find(frame, 'PF')!.node)).toBeCloseTo(GRID.name.size * 1.6, 5);
+  });
+
+  it('shrinks a long exam name to one line of the width, above the floor', () => {
+    const { frame } = render({ titulo: '# Concurso Prefeitura de Lagoa Santa', apelo: OFFER });
+    const name = find(frame, 'LAGOA SANTA')!;
+    expect(layOut(name.node)).toHaveLength(1);
+    expect(sizeOf(name.node)).toBeLessThan(GRID.name.size);
   });
 });

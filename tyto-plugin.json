@@ -1,7 +1,7 @@
 {
   "name": "anuncio",
-  "version": "0.3.2",
-  "engine": ">=0.28",
+  "version": "0.4.0",
+  "engine": ">=0.29",
   "contributes": ["template-pack"],
   "permissions": ["font:CircularXX"]
 }
