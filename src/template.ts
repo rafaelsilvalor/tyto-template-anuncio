@@ -31,14 +31,13 @@
  * declared value (Tyto ADR 0153).
  */
 
-import { colorValue, frame, image, rect, solid } from '@tyto/core/template';
+import { colorValue, contrastRatio, frame, image, rect, solid } from '@tyto/core/template';
 import { drawLogo, oneInk } from '@tyto/house-style';
 import {
   at,
   block,
   blockColumn,
   bodyBlock,
-  bodySize,
   card as drawCard,
   cardSegments,
   grownTextBlock,
@@ -58,6 +57,7 @@ import type { Inline, RichText, TemplateBuild, TemplateContext } from '@tyto/cor
 import type { NodeDraft } from '@tyto/core/template';
 import type {
   Area,
+  Level,
   Block,
   CardRole,
   ColumnEntry,
@@ -71,19 +71,49 @@ import type {
 
 /* ------------------------------------------------------------------------- the tokens -- */
 
-/** The colours, by declared value name, each default the reference's. */
+/**
+ * The colours, by declared value name, each default the reference's. Named in the brief writer's
+ * language, since a brief's frontmatter sets them (Tyto ADR 0226): `destaque: '#e30613'`.
+ */
 export const COLOR_DEFAULTS = {
-  /** The exam's name, the card's outline and its band. */
-  accent: '#1363d0',
+  /** The exam's name, the accent levels, the card's outline and its band. */
+  destaque: '#1363d0',
   /** The panel under the words. */
-  paper: '#f7f4f4',
+  fundo: '#f7f4f4',
   /** Every word on the panel. */
-  ink: '#4d4d4d',
+  texto: '#4d4d4d',
   /** The words on the band. */
-  'on-accent': '#eceaea',
+  'texto-faixa': '#eceaea',
 } as const;
 
 type ColorName = keyof typeof COLOR_DEFAULTS;
+
+/**
+ * The least contrast a pair of colours the template draws words in may have before it warns
+ * (TYTO-836). Both pairs set large Black words, the exam's name and the band, so the floor is
+ * WCAG 2's for large text, 3:1, not 4.5:1: at 4.5 the house red #e30613 would warn on both pairs
+ * (4.1 and 4.5) though it reads well, while yellow (1.4) and a mid green (2.6) still warn at 3.
+ */
+export const CONTRAST_FLOOR = 3;
+
+/** The pairs checked, words on their ground: the band's words, and the name on the panel. */
+const CONTRAST_PAIRS: readonly (readonly [ColorName, ColorName])[] = [
+  ['texto-faixa', 'destaque'],
+  ['destaque', 'fundo'],
+];
+
+/** One warning per pair under the floor; the colours stay as the brief chose them. */
+function reportContrast(context: TemplateContext, ink: Ink): void {
+  for (const [words, ground] of CONTRAST_PAIRS) {
+    const foreground = ink(words);
+    const background = ink(ground);
+    const ratio = contrastRatio(foreground, background);
+    // A colour that is no hex (a named colour a configuration chose) has no ratio, and no warning.
+    if (ratio !== undefined && ratio < CONTRAST_FLOOR) {
+      context.report({ code: 'W_TEMPLATE_LOW_CONTRAST', foreground, background, ratio });
+    }
+  }
+}
 type Ink = (name: ColorName) => string;
 
 const FACE = { family: 'CircularXX', source: 'system' } as const;
@@ -198,8 +228,6 @@ const CARD_RADIUS = 39;
 const FIT_FLOOR = 0.7;
 /** The photograph's stand-in when the brief names none. */
 const NO_PHOTO = '#c9ccd2';
-/** A base-level part before the main one is tracked out, in em: `C O N C U R S O`. */
-const TRACKING = 0.8;
 /** The divider's three dots: their diameter and the room between them, in px. */
 const DOT = 12;
 const DOT_GAP = 10;
@@ -280,14 +308,6 @@ export const ANUNCIO_PARAMETERS = {
     max: 1,
     description: "The most of the panel's room the head may take when its main line grows.",
   },
-  unmarkedRatio: {
-    kind: 'ratio',
-    default: 0.8,
-    min: 0,
-    max: 1,
-    description:
-      'A line with no # mark, in the title and in the body, as a share of the smallest marked size: the unmarked level is always the smallest (maintainer, 2026-11-22).',
-  },
 } as const satisfies ParameterSchema;
 
 /**
@@ -350,22 +370,23 @@ export const build: TemplateBuild = (context: TemplateContext) => {
     parameters: { reach },
   });
   reportOverflow(context.report, column.overflow, 0);
+  reportContrast(context, ink);
 
   const panelTop = geometry.panelTop - column.rise;
-  const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink('accent')));
+  const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink('destaque')));
 
   return frame({
     format: context.format,
     size: context.size,
     idPrefix: context.idPrefix,
-    background: solid(ink('paper')),
+    background: solid(ink('fundo')),
     children: [
       photo(context, geometry),
       rect({
         name: 'painel',
         size: { w: context.size.w, h: context.size.h - panelTop },
         radius: [geometry.panelRadius, geometry.panelRadius, 0, 0],
-        fill: solid(ink('paper')),
+        fill: solid(ink('fundo')),
         transform: { y: panelTop },
       }),
       at(TEXT_MARGIN, top - column.rise, column.block),
@@ -412,7 +433,7 @@ function head(
         look: (part) => lookOf(part, geometry, ink, ratio),
         gap: geometry.partGap * ratio,
         lineGap: (above) => lineGapOf(above, geometry) * ratio,
-        divider: () => dots(ink('ink'), ratio),
+        divider: () => dots(ink('texto'), ratio),
       },
       room.width,
       context.measure,
@@ -440,51 +461,47 @@ export function lineGapOf(above: LevelItem, geometry: Geometry): number {
   return holdsName ? geometry.nameGap : geometry.lineGap;
 }
 
-/**
- * What each level of the head looks like at a ratio of the reference: `#` the exam's name, in
- * capitals and the accent; `##` before it the status line, after it the salary; `###` a
- * supporting line in Medium; the base level a supporting line, or, before the name, a tracked
- * label in the accent.
- */
-function lookOf(part: LevelPart, geometry: Geometry, ink: Ink, ratio: number): LevelLook {
-  const look = (spot: Spot, weight: number, color: string): LevelLook => ({
-    style: styleOf(spot.size * ratio, weight, color),
-    lineHeight: LINE_HEIGHT,
-  });
-  const unmarked: Spot = { capTop: geometry.support.capTop, size: unmarkedSize(geometry) };
-  switch (part.level) {
-    case 1:
-      return { ...look(geometry.name, BLACK, ink('accent')), transform: upper };
-    case 2:
-      return part.position === 'before'
-        ? look(geometry.kicker, MEDIUM, ink('ink'))
-        : look(geometry.salary, MEDIUM, ink('ink'));
-    case 3:
-      return look(geometry.support, MEDIUM, ink('ink'));
-    default:
-      return part.position === 'before'
-        ? {
-            ...look(unmarked, LIGHT, ink('accent')),
-            letterSpacing: unmarked.size * ratio * TRACKING,
-            transform: upper,
-          }
-        : look(unmarked, LIGHT, ink('ink'));
-  }
+/** How one level is drawn: its size as a ratio of `#`, its weight, colour and letter spacing. */
+export interface LevelStyle {
+  readonly ratio: number;
+  readonly weight: number;
+  readonly color: ColorName;
+  /** In em of the level's own size. */
+  readonly tracking: number;
+  readonly upper: boolean;
 }
 
-/** The marked levels' sizes the title and the body share: `#` the name, `##`, `###`. */
-function markedSizes(geometry: Geometry): Readonly<Record<1 | 2 | 3, number>> {
+/**
+ * The template's styles per level, the same for the title and the body (maintainer, 2026-11-22,
+ * on the specimen sheet): seven styles of the reference art, one per mark. Sizes are ratios of
+ * `#`, so they follow the name when it grows or shrinks to fit, and `peso` multiplies them again.
+ * The unmarked level is the smallest; `####` to `######` differ by format more than by size,
+ * since below about 28 px on a 1080 px frame a line stops reading on a phone.
+ */
+export const LEVEL_STYLES: Readonly<Record<Level, LevelStyle>> = {
+  1: { ratio: 1, weight: BLACK, color: 'destaque', tracking: 0, upper: true },
+  2: { ratio: 0.75, weight: MEDIUM, color: 'texto', tracking: 0, upper: false },
+  3: { ratio: 0.56, weight: MEDIUM, color: 'texto', tracking: 0, upper: false },
+  4: { ratio: 0.48, weight: BLACK, color: 'destaque', tracking: 0, upper: false },
+  5: { ratio: 0.48, weight: LIGHT, color: 'texto', tracking: 0, upper: false },
+  6: { ratio: 0.44, weight: LIGHT, color: 'destaque', tracking: 0.3, upper: true },
+  0: { ratio: 0.4, weight: LIGHT, color: 'texto', tracking: 0, upper: false },
+};
+
+/** A part drawn in its level's style at `size`. */
+function styled(part: LevelPart, size: number, ink: Ink): LevelLook {
+  const style = LEVEL_STYLES[part.level];
   return {
-    1: geometry.name.size,
-    2: Math.min(geometry.kicker.size, geometry.salary.size),
-    3: geometry.support.size,
+    style: styleOf(size, style.weight, ink(style.color)),
+    lineHeight: LINE_HEIGHT,
+    ...(style.tracking === 0 ? {} : { letterSpacing: size * style.tracking }),
+    ...(style.upper ? { transform: upper } : {}),
   };
 }
 
-/** A line with no mark: the smallest marked size times `unmarkedRatio` (the kit's `bodySize`). */
-function unmarkedSize(geometry: Geometry): number {
-  const { unmarkedRatio } = parameterValues(ANUNCIO_PARAMETERS);
-  return bodySize(0, markedSizes(geometry), { unmarkedRatio });
+/** What each level of the head looks like at a ratio of the reference: the level table's style. */
+function lookOf(part: LevelPart, geometry: Geometry, ink: Ink, ratio: number): LevelLook {
+  return styled(part, geometry.name.size * LEVEL_STYLES[part.level].ratio * ratio, ink);
 }
 
 /* ---------------------------------------------------------------------- corpo (body) -- */
@@ -504,21 +521,26 @@ function body(
   room: Area,
   scale: number,
 ): Block | undefined {
-  const { unmarkedRatio } = parameterValues(ANUNCIO_PARAMETERS);
-  const sizes = markedSizes(geometry);
+  const name = geometry.name.size;
+  const size = (level: Exclude<Level, 0>): number => name * LEVEL_STYLES[level].ratio;
+  // The kit sizes an unmarked line as a share of the smallest level the body uses; the table
+  // fixes it at 0.40 of `#`, so the share is worked out from the levels this body writes.
+  const used = levelsOf(words, { readByPosition: false }).flatMap((item) =>
+    item.kind === 'line' ? item.parts.map((part) => part.level) : [],
+  );
+  const marked = used.filter((level): level is Exclude<Level, 0> => level !== 0);
+  const smallest = Math.min(
+    ...(marked.length === 0 ? [1, 2, 3] : marked).map(
+      (level) => LEVEL_STYLES[level as Exclude<Level, 0>].ratio,
+    ),
+  );
+  const unmarkedRatio = Math.min(1, LEVEL_STYLES[0].ratio / smallest);
   return bodyBlock(room, scale, {
     words,
-    sizes: { 1: sizes[1], 2: geometry.salary.size, 3: sizes[3] },
-    look: (part, size) => ({
-      style: styleOf(
-        size,
-        part.level === 1 ? BLACK : part.level === 0 ? LIGHT : MEDIUM,
-        part.level === 1 ? ink('accent') : ink('ink'),
-      ),
-      lineHeight: LINE_HEIGHT,
-    }),
+    sizes: { 1: size(1), 2: size(2), 3: size(3), 4: size(4), 5: size(5), 6: size(6) },
+    look: (part, drawn) => styled(part, drawn, ink),
     measure: context.measure,
-    divider: (_width, ratio) => dots(ink('ink'), ratio),
+    divider: (_width, ratio) => dots(ink('texto'), ratio),
     parameters: { unmarkedRatio, partGap: geometry.partGap, lineGap: geometry.lineGap },
     name: 'corpo',
   });
@@ -563,7 +585,7 @@ function offer(
         return fitted(context, 'faixa-texto', words(parts), {
           size: geometry.bandText.size * scale,
           weight: BLACK,
-          color: ink('on-accent'),
+          color: ink('texto-faixa'),
           inner,
           shrink: true,
         });
@@ -571,7 +593,7 @@ function offer(
         return fitted(context, 'oferta', words(parts), {
           size: geometry.title.size * scale,
           weight: LIGHT,
-          color: ink('ink'),
+          color: ink('texto'),
           inner,
           shrink: true,
         });
@@ -579,7 +601,7 @@ function offer(
         return fitted(context, 'rodape', words(parts), {
           size: geometry.foot.size * scale,
           weight: LIGHT,
-          color: ink('ink'),
+          color: ink('texto'),
           inner,
           shrink: false,
         });
@@ -595,10 +617,10 @@ function offer(
     name: 'cartao',
     width: card.w,
     radius: CARD_RADIUS,
-    stroke: { paint: solid(ink('accent')), width: 2, align: 'inside' },
+    stroke: { paint: solid(ink('destaque')), width: 2, align: 'inside' },
     band: {
       name: 'faixa',
-      fill: solid(ink('accent')),
+      fill: solid(ink('destaque')),
       effects: [
         { kind: 'shadow', x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } },
       ],
@@ -622,7 +644,7 @@ function note(
     words,
     room.width,
     0,
-    styleOf(geometry.proof.size * scale, LIGHT, ink('ink')),
+    styleOf(geometry.proof.size * scale, LIGHT, ink('texto')),
     context.measure,
     { name: 'nota', align: 'center', lineHeight: LINE_HEIGHT, overflow: 'grow' },
   );

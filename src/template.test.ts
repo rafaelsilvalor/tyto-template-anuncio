@@ -119,7 +119,7 @@ interface Brief {
   readonly nota?: string;
   /** The brief's order, as `context.order` carries it (Tyto ADR 0225). */
   readonly order?: readonly BlockName[];
-  readonly peso?: Partial<Record<BlockName, '1' | '2' | '3' | undefined>>;
+  readonly peso?: Partial<Record<BlockName, '1' | '2' | '3' | '4' | '5' | undefined>>;
 }
 
 function render(brief: Brief, format: keyof typeof FORMATS = 'grid'): Built {
@@ -380,7 +380,7 @@ describe('the head at the limits of its slot', () => {
   });
 
   it('shrinks every block before it raises the panel, and keeps a quarter for the photograph', () => {
-    const support = Array.from({ length: 14 }, (_, index) => `Cargo de apoio ${index + 1}`);
+    const support = Array.from({ length: 18 }, (_, index) => `Cargo de apoio ${index + 1}`);
     const plain = render({ titulo: HEAD, apelo: OFFER }).frame;
     const { frame, reports } = render({ titulo: [HEAD, ...support].join('\n'), apelo: OFFER });
     const panel = rectNamed(frame, 'painel')!;
@@ -443,14 +443,15 @@ describe('the blocks as the brief wrote them', () => {
     expect(card.y - bottomOf(find(frame, 'R$ 9,2 mil')!)).toBeCloseTo(56, 5);
   });
 
-  it('draws a block written {peso: 1} smaller and {peso: 3} larger', () => {
-    const size = (peso?: '1' | '3') =>
+  it('draws a block written {peso: 1} smaller and {peso: 5} larger, 3 as designed', () => {
+    const size = (peso?: '1' | '3' | '5') =>
       sizeOf(
         find(render({ titulo: HEAD, apelo: OFFER, peso: { apelo: peso } }).frame, 'Por tempo')!
           .node,
       );
     expect(size('1')).toBeLessThan(size());
-    expect(size('3')).toBeGreaterThan(size());
+    expect(size('5')).toBeGreaterThan(size());
+    expect(size('3')).toBe(size());
   });
 });
 
@@ -512,7 +513,7 @@ describe('the body (TYTO-832)', () => {
     // A heavier body may make the whole column shrink by one factor; against the title, which
     // shrinks by the same factor, the body is 1.2 times what it was.
     const plain = render({ titulo: TITLE, corpo: BODY, apelo: OFFER }).frame;
-    const heavy = render({ titulo: TITLE, corpo: BODY, apelo: OFFER, peso: { corpo: '3' } }).frame;
+    const heavy = render({ titulo: TITLE, corpo: BODY, apelo: OFFER, peso: { corpo: '4' } }).frame;
     const ratio = (frame: Frame) =>
       sizeOf(find(frame, 'R$ 9,2 mil')!.node) / sizeOf(find(frame, 'QC REGULA')!.node);
     expect(ratio(heavy) / ratio(plain)).toBeCloseTo(1.2, 5);
@@ -536,5 +537,68 @@ describe('the title’s unmarked level (TYTO-832)', () => {
     expect(sizeOf(find(frame, 'Vagas para')!.node)).toBeLessThan(
       sizeOf(find(frame, 'Cargos de nível médio')!.node),
     );
+  });
+});
+
+describe('the level table (TYTO-836)', () => {
+  const ladder = [
+    '# Nome',
+    '## Dois',
+    '### Três',
+    '#### Quatro',
+    '##### Cinco',
+    '###### Seis',
+    'Sem marca',
+  ].join('\n');
+
+  const runOf = (frame: Frame, words: string) => {
+    const run = find(frame, words)!.node.runs.find((each) => each.kind === 'text')!;
+    return run.kind === 'text' ? run : undefined;
+  };
+
+  it.each([
+    ['body', 'corpo'],
+    ['title', 'titulo'],
+  ] as const)('draws each level of the %s in its style', (_where, slot) => {
+    const brief =
+      slot === 'corpo'
+        ? { titulo: '# Concurso QC Regula', corpo: ladder.replace('# Nome\n', ''), apelo: OFFER }
+        : { titulo: ladder, apelo: OFFER };
+    const { frame } = render(brief);
+    const words =
+      slot === 'corpo'
+        ? ['Dois', 'Três', 'Quatro', 'Cinco', 'SEIS', 'Sem marca']
+        : ['NOME', 'Dois', 'Três', 'Quatro', 'Cinco', 'SEIS', 'Sem marca'];
+    const runs = words.map((each) => runOf(frame, each)!);
+    const sizes = runs.map((run) => run.size);
+    // Sizes fall with the level, #### and ##### equal, the unmarked level the smallest.
+    for (let index = 1; index < sizes.length; index++) {
+      expect(sizes[index]).toBeLessThanOrEqual(sizes[index - 1]!);
+    }
+    expect(sizes[sizes.length - 1]).toBeLessThan(sizes[sizes.length - 2]!);
+    // Weight and colour per the table.
+    const by = (word: string) => runs[words.indexOf(word)]!;
+    expect(by('Quatro').weight).toBe(900);
+    expect(by('Quatro').color).toEqual(by('SEIS').color);
+    expect(by('Quatro').color).not.toEqual(by('Cinco').color);
+    expect(by('Cinco').weight).toBe(300);
+    expect(by('Três').weight).toBe(500);
+    expect(by('Sem marca').weight).toBe(300);
+    expect(find(frame, 'SEIS')!.node.letterSpacing).toBeGreaterThan(0);
+  });
+
+  it('keeps the unmarked level at 0.40 of #, whatever levels the body writes', () => {
+    const one = render({
+      titulo: '# Concurso QC Regula',
+      corpo: '## Salário\nDetalhe',
+      apelo: OFFER,
+    }).frame;
+    const two = render({
+      titulo: '# Concurso QC Regula',
+      corpo: '### Fato\nDetalhe',
+      apelo: OFFER,
+    }).frame;
+    expect(sizeOf(find(one, 'Detalhe')!.node)).toBeCloseTo(sizeOf(find(two, 'Detalhe')!.node), 5);
+    expect(sizeOf(find(one, 'Detalhe')!.node)).toBeCloseTo(GRID.name.size * 0.4, 5);
   });
 });

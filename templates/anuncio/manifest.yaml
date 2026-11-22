@@ -1,5 +1,5 @@
 name: anuncio
-version: 0.5.0
+version: 0.6.0
 description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
@@ -22,19 +22,23 @@ slots:
   # the status before it or the salary after it, `###` a stronger supporting line, an unmarked
   # part a supporting line, or before the name a tracked label; a line of `---` the dots. The
   # first line with no mark is read by position; a later unmarked line is a supporting line.
-  titulo: { type: rich-text, required: true, max: 600 }
+  # Shared before the slides or after `::comum`; written inside a `::lamina` it is that
+  # artwork's own and replaces the shared one there (ADR 0225), so one brief can hold two exams'
+  # heads over the same offer.
+  titulo: { type: rich-text, per: lamina, shared: true, required: true, max: 600 }
   # The general information under the title (Tyto docs/slot-vocabulary.md, `corpo`): vacancies,
   # exam board, roles, salary, in the head's levels; a line with no mark is drawn smallest.
   # Shared before the slides or after `::comum`, a slide's own inside a `::lamina` (ADR 0225).
   # Without it, the title draws every line, as 0.4.0 did.
   corpo: { type: rich-text, per: lamina, shared: true, max: 600 }
   # One artwork each: the offer version and the timeless one are two `::lamina`. A lamina holds
-  # no lines of its own; its `::apelo` follows it. `max` counts artworks.
+  # no lines of its own; its blocks follow it. `max` counts artworks.
   lamina: { type: rich-text, repeat: true, min: 1, max: 4 }
   # The panel that calls for attention, drawn as a card shaped by its parts: the line's main
   # part is the band, the parts before it the card's title, the parts after it its foot.
   # `Lote Especial | # Pacotes com 40% OFF` has no foot, so the band takes the bottom corners.
-  apelo: { type: rich-text, per: lamina }
+  # A slide's own, or shared by every slide that writes none (ADR 0225).
+  apelo: { type: rich-text, per: lamina, shared: true }
   # The proof line, the proof of approvals, say. Written before the first `::lamina`, or after
   # `::comum`, it is every artwork's; written inside a lamina it is that artwork's only, and
   # replaces the shared one there (Tyto ADR 0225). Blocks are drawn in the order the brief writes
@@ -44,18 +48,25 @@ slots:
   imagem: { type: image }
   # A teacher cut out with no background, drawn over the photograph. Not drawn yet.
   recorte: { type: image }
-# A block's weight (Tyto docs/slot-vocabulary.md, `peso`): `{peso: 1}` draws it at 0.85 of its
-# size, `{peso: 3}` at 1.2; the head never grows past the width its main line fills.
+# A block's weight (Tyto docs/slot-vocabulary.md, `peso`), 1 to 5 with 3 the designed size:
+# `{peso: 1}` draws it at 0.7, `{peso: 2}` at 0.85, `{peso: 4}` at 1.2, `{peso: 5}` at 1.4; the head
+# never grows past the width its main line fills.
 adjustments:
-  peso: { type: enum, values: ['1', '2', '3'], default: '2', applies: [titulo, corpo, apelo, nota] }
+  peso:
+    {
+      type: enum,
+      values: ['1', '2', '3', '4', '5'],
+      default: '3',
+      applies: [titulo, corpo, apelo, nota],
+    }
 # What a configuration may change (Tyto ADR 0153). Each default is the reference's (piece 38 of
 # the study); `tests/values.test.ts` pins them equal to the ones the code falls back to.
 values:
   # The exam's name, the card's outline and its band.
-  accent: { type: color, default: '#1363d0' }
+  destaque: { type: color, default: '#1363d0' }
   # The panel under the words.
-  paper: { type: color, default: '#f7f4f4' }
+  fundo: { type: color, default: '#f7f4f4' }
   # Every word on the panel.
-  ink: { type: color, default: '#4d4d4d' }
+  texto: { type: color, default: '#4d4d4d' }
   # The words on the band.
-  on-accent: { type: color, default: '#eceaea' }
+  texto-faixa: { type: color, default: '#eceaea' }
