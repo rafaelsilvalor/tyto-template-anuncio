@@ -37,6 +37,7 @@ import {
   at,
   block,
   blockColumn,
+  entriesInOrder,
   bodyBlock,
   card as drawCard,
   cardSegments,
@@ -60,6 +61,7 @@ import type {
   Level,
   Block,
   CardRole,
+  BlockOfKind,
   ColumnEntry,
   LevelItem,
   LevelLook,
@@ -87,6 +89,9 @@ export const COLOR_DEFAULTS = {
 } as const;
 
 type ColorName = keyof typeof COLOR_DEFAULTS;
+
+/** One placed block's value, as `context.order` carries it (Tyto ADR 0227). */
+type BlockSlot = Parameters<BlockOfKind>[0];
 
 /**
  * The least contrast a pair of colours the template draws words in may have before it warns
@@ -330,40 +335,55 @@ export const build: TemplateBuild = (context: TemplateContext) => {
   };
   const reach = Math.max(0, geometry.panelTop - context.size.h * values.photoShare);
 
-  const titulo = levelsOf(wordsOf(context, 'titulo'));
-  const corpo = wordsOf(context, 'corpo');
-  const apelo = levelsOf(wordsOf(context, 'apelo'));
-  const nota = wordsOf(context, 'nota');
-  const entries: ColumnEntry[] = [
-    {
-      name: 'titulo',
-      scale: weightOf(context.slots['titulo']),
-      build: (room, scale) => head(context, ink, geometry, titulo, room, scale, values.headShare),
+  // One column entry per block the brief placed (Tyto ADR 0227, TYTO-840): two `::corpo`, or a
+  // shared title and a slide's own, are two blocks, each from its own words at its own `peso`.
+  const textOf = (slot: BlockSlot): RichText =>
+    slot.value.kind === 'rich-text' ? slot.value.text : EMPTY;
+  const kinds: Record<string, BlockOfKind> = {
+    titulo: (slot) => {
+      const items = levelsOf(textOf(slot));
+      return {
+        scale: weightOf(slot),
+        build: (room, scale) => head(context, ink, geometry, items, room, scale, values.headShare),
+      };
     },
-    {
-      name: 'corpo',
-      scale: weightOf(context.slots['corpo']),
-      build: (room, scale) => body(context, ink, geometry, corpo, room, scale),
+    corpo: (slot) => {
+      const words = textOf(slot);
+      return {
+        scale: weightOf(slot),
+        build: (room, scale) => body(context, ink, geometry, words, room, scale),
+      };
     },
-    {
-      name: 'apelo',
-      scale: weightOf(context.slots['apelo']),
-      build: (_room, scale) =>
-        offer(context, ink, geometry, apelo, scale, values.segmentPadding * scale),
+    apelo: (slot) => {
+      const items = levelsOf(textOf(slot));
+      return {
+        scale: weightOf(slot),
+        build: (_room, scale) =>
+          offer(context, ink, geometry, items, scale, values.segmentPadding * scale),
+      };
     },
-    {
-      name: 'nota',
-      scale: weightOf(context.slots['nota']),
-      build: (room, scale) => note(context, ink, geometry, nota, room, scale),
+    nota: (slot) => {
+      const words = textOf(slot);
+      return {
+        scale: weightOf(slot),
+        build: (room, scale) => note(context, ink, geometry, words, room, scale),
+      };
     },
-  ];
+  };
+  // A context built without values (a test by hand) reads one value per slot, as before.
+  const fallback: ColumnEntry[] = (['titulo', 'corpo', 'apelo', 'nota'] as const).map((name) => {
+    const slot = context.slots[name];
+    const built = slot === undefined ? undefined : kinds[name]?.(slot);
+    return { name, build: built?.build ?? (() => undefined), scale: built?.scale ?? 1 };
+  });
   const column = blockColumn(area, {
     name: 'coluna',
-    entries,
-    order: context.order,
+    entries: entriesInOrder(context.order, kinds, fallback),
     gapBetween: (above, below) => {
-      // The body reads as the head's continuation: under the name it keeps the name's own gap.
+      // The body reads as the head's continuation: under the name it keeps the name's own gap,
+      // and so does a second block of the head's own kind.
       if (above === 'titulo' && below === 'corpo') return geometry.nameGap;
+      if (above === below && (above === 'titulo' || above === 'corpo')) return geometry.nameGap;
       const isHead = (name: string): boolean => name === 'titulo' || name === 'corpo';
       return isHead(above) || isHead(below) ? values.headGap : geometry.proofGap;
     },
