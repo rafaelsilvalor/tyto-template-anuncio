@@ -6,7 +6,9 @@ formats: [grid, story]
 
 ::titulo
   ## Edital publicado | # Concurso QC Regula
-  Vagas para Analista Técnico e Técnico de Apoio
+
+::corpo
+  ### Vagas para Analista Técnico e Técnico de Apoio
   ## Ganhe até R$ 9 mil por mês!
 
 ::lamina

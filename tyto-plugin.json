@@ -1,6 +1,6 @@
 {
   "name": "anuncio",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "engine": ">=0.29",
   "contributes": ["template-pack"],
   "permissions": ["font:CircularXX"]
