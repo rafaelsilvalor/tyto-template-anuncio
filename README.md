@@ -5,9 +5,11 @@ a remarketing ad for one exam, its facts at the head and an offer below, in a fe
 (1080×1350) and a story (1080×1920). It belongs to Tyto's E18 (TYTO-803, Tyto ADR 0151): a
 template that lives, is tested and is released here, with no pull request in Tyto's repository.
 
-**This repository holds the composition only.** The logo is not here: Tyto hands it to the
-template from the brand kit installed on the machine, and without one it draws a placeholder
-(Tyto ADR 0063, ADR 0065). The example briefs are invented copy.
+**This repository holds the composition only.** The logo, the wordmark and the background
+pattern are not here: Tyto hands them to the template from the brand kit installed on the
+machine, under the brand a plugin file's configuration names (Tyto ADR 0063, ADR 0155). Without
+a kit it draws a placeholder logo, no wordmark and no pattern (ADR 0065). The example briefs are
+invented copy.
 
 **One layout is drawn so far: `vitrine` with `cartao`.** The photograph fills the top; a panel
 with rounded corners rises over it, and in it one column of Tyto's kit (`blockColumn`, Tyto
@@ -109,6 +111,14 @@ formats: [grid, story]
 
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
+
+**0.8.0 draws the kit's lockup and pattern:** the kit's wordmark beside its logo, both in
+`destaque`, at the reference's sizes (Tyto ADR 0066), and the kit's background pattern over the
+panel at 8%, cut to it, lines in `destaque` and dots in `texto` (Tyto ADR 0228). The lattice is
+registered to the frame, a tile corner at x 40 and y 217 modulo 336 as in the reference, so it
+stays put when a long head raises the panel. It needs a Tyto on plugin API 0.32 (`engine
+
+> =0.32`). Without a kit every render is what 0.7.0 drew.
 
 **0.7.0 adds blocks up and places them by name:** a block written inside a slide now comes
 with the shared one of its kind instead of replacing it, `::corpo` may be written several times,

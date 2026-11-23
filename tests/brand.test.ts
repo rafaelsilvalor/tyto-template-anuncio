@@ -109,11 +109,13 @@ describe('the background pattern', () => {
   });
 
   it('keeps the lattice registered to the frame when the panel moves', async () => {
-    // The tile is drawn 336 wide; one tile corner sits at x 40 on every frame, so the first
-    // column starts at 40 − 336.
+    // The tile is drawn 336 wide; a tile corner sits at (40, 217) of the frame. This panel
+    // starts at 486, so the first tile starts at (40 − 336, 217 − 486) inside it: the frame's
+    // 217, not the panel's own top plus 217.
     const [grid] = await render({ logo: SQUARE, pattern: LATTICE });
 
-    expect(grid).toMatch(/data-name="pattern-0-0"/);
-    expect(grid).toContain('matrix(1, 0, 0, 1, -296,');
+    expect(grid).toContain('id="lamina-1.grid.painel"');
+    expect(grid).toContain('#lamina-1\\.grid\\.painel { transform: matrix(1, 0, 0, 1, 0, 486)');
+    expect(grid).toContain('matrix(1, 0, 0, 1, -296, -269)');
   });
 });

@@ -1,5 +1,5 @@
 name: anuncio
-version: 0.7.0
+version: 0.8.0
 description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
