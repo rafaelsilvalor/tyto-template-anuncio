@@ -245,6 +245,13 @@ interface Geometry {
   readonly wordmark: { readonly height: number; readonly gap: number };
   /** The offer card's corner radius: rounded under the vitrine head, square under the faixa. */
   readonly cardRadius: number;
+  /** Whether the card's band casts the reference's shadow: the vitrine's does, the faixa's not. */
+  readonly bandShadow: boolean;
+  /**
+   * How far the name may grow past its reference size to fill the width; absent, the kit's
+   * default. The faixa sets its name at the reference size and only shrinks it (TYTO-848).
+   */
+  readonly nameMaxScale?: number;
 }
 
 /**
@@ -293,6 +300,7 @@ export const GRID: Geometry = {
   logo: { top: 1245, height: 62 },
   wordmark: { height: 49.5, gap: 13 },
   cardRadius: 39,
+  bandShadow: true,
 };
 
 /** The story, board `1920_v1` of the reference: status to name 32 px, the lines 65 and 30. */
@@ -318,6 +326,7 @@ export const STORY: Geometry = {
   logo: { top: 1687, height: 71 },
   wordmark: { height: 57, gap: 16 },
   cardRadius: 39,
+  bandShadow: true,
 };
 
 /**
@@ -335,6 +344,8 @@ export const FAIXA_GRID: Geometry & { readonly faixa: FaixaShape } = {
   logo: { top: 41, height: 54 },
   wordmark: { height: 43, gap: 11 },
   cardRadius: 0,
+  bandShadow: false,
+  nameMaxScale: 1,
   faixa: {
     margin: 59,
     photoTop: 126,
@@ -359,6 +370,8 @@ export const FAIXA_STORY: Geometry & { readonly faixa: FaixaShape } = {
   logo: { top: 72, height: 54 },
   wordmark: { height: 43, gap: 11 },
   cardRadius: 0,
+  bandShadow: false,
+  nameMaxScale: 1,
   faixa: {
     margin: 58,
     photoTop: 157,
@@ -814,7 +827,12 @@ function head(
     );
   const fill = mainLineScale(
     { width: room.width, height: Infinity },
-    { items, look: reference, measure: context.measure, parameters: { maxScale: Infinity } },
+    {
+      items,
+      look: reference,
+      measure: context.measure,
+      parameters: { maxScale: geometry.nameMaxScale ?? Infinity },
+    },
   );
   const fitted = mainLineScale(
     { width: room.width, height: room.height * headShare },
@@ -823,6 +841,9 @@ function head(
       look: reference,
       measure: context.measure,
       heightAt: (ratio) => stackAt(ratio).height,
+      ...(geometry.nameMaxScale === undefined
+        ? {}
+        : { parameters: { maxScale: geometry.nameMaxScale } }),
     },
   );
   const drawn = stackAt(Math.min(fitted * scale, Math.max(fill, fitted)));
@@ -1002,9 +1023,18 @@ function offer(
     band: {
       name: 'faixa',
       fill: solid(ink('destaque')),
-      effects: [
-        { kind: 'shadow', x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } },
-      ],
+      effects: geometry.bandShadow
+        ? [
+            {
+              kind: 'shadow',
+              x: 0,
+              y: 8,
+              blur: 32,
+              spread: 0,
+              color: { r: 0, g: 0, b: 0, a: 0.35 },
+            },
+          ]
+        : [],
     },
   });
 }

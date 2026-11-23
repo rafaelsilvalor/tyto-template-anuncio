@@ -23512,7 +23512,8 @@ var GRID = {
   proof: { capTop: 1171, size: 33.3 },
   logo: { top: 1245, height: 62 },
   wordmark: { height: 49.5, gap: 13 },
-  cardRadius: 39
+  cardRadius: 39,
+  bandShadow: true
 };
 var STORY = {
   panelTop: 745,
@@ -23535,7 +23536,8 @@ var STORY = {
   proof: { capTop: 1590, size: 36.5 },
   logo: { top: 1687, height: 71 },
   wordmark: { height: 57, gap: 16 },
-  cardRadius: 39
+  cardRadius: 39,
+  bandShadow: true
 };
 var FAIXA_GRID = {
   ...GRID,
@@ -23548,6 +23550,8 @@ var FAIXA_GRID = {
   logo: { top: 41, height: 54 },
   wordmark: { height: 43, gap: 11 },
   cardRadius: 0,
+  bandShadow: false,
+  nameMaxScale: 1,
   faixa: {
     margin: 59,
     photoTop: 126,
@@ -23570,6 +23574,8 @@ var FAIXA_STORY = {
   logo: { top: 72, height: 54 },
   wordmark: { height: 43, gap: 11 },
   cardRadius: 0,
+  bandShadow: false,
+  nameMaxScale: 1,
   faixa: {
     margin: 58,
     photoTop: 157,
@@ -23876,7 +23882,12 @@ function head(context, ink, geometry, items, room, scale, headShare) {
   );
   const fill = mainLineScale(
     { width: room.width, height: Infinity },
-    { items, look: reference, measure: context.measure, parameters: { maxScale: Infinity } }
+    {
+      items,
+      look: reference,
+      measure: context.measure,
+      parameters: { maxScale: geometry.nameMaxScale ?? Infinity }
+    }
   );
   const fitted2 = mainLineScale(
     { width: room.width, height: room.height * headShare },
@@ -23884,7 +23895,8 @@ function head(context, ink, geometry, items, room, scale, headShare) {
       items,
       look: reference,
       measure: context.measure,
-      heightAt: (ratio) => stackAt(ratio).height
+      heightAt: (ratio) => stackAt(ratio).height,
+      ...geometry.nameMaxScale === void 0 ? {} : { parameters: { maxScale: geometry.nameMaxScale } }
     }
   );
   const drawn = stackAt(Math.min(fitted2 * scale, Math.max(fill, fitted2)));
@@ -23997,9 +24009,16 @@ function offer(context, ink, geometry, items, scale, padding) {
     band: {
       name: "faixa",
       fill: solid(ink("destaque")),
-      effects: [
-        { kind: "shadow", x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } }
-      ]
+      effects: geometry.bandShadow ? [
+        {
+          kind: "shadow",
+          x: 0,
+          y: 8,
+          blur: 32,
+          spread: 0,
+          color: { r: 0, g: 0, b: 0, a: 0.35 }
+        }
+      ] : []
     }
   });
 }
