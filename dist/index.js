@@ -23560,7 +23560,7 @@ var FAIXA_GRID = {
     radius: 60,
     status: { size: 40 },
     columnTop: 700,
-    columnBottom: 1300
+    columnBottom: 1330
   }
 };
 var FAIXA_STORY = {
@@ -23584,7 +23584,7 @@ var FAIXA_STORY = {
     radius: 60,
     status: { size: 40 },
     columnTop: 950,
-    columnBottom: 1720
+    columnBottom: 1760
   }
 };
 var PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 };
