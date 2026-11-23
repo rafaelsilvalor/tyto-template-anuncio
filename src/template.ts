@@ -10,7 +10,7 @@
  * The head's layout (`cabeca`) and the offer's (`oferta`) are enum slots, so each named variant
  * (`vitrine-cartao`, `faixa-lista`…) is a configuration of the plugin file that defaults them
  * (Tyto ADR 0151, TYTO-440). **Two heads are drawn so far, `vitrine` and `faixa` (TYTO-848),
- * and one offer, `cartao`**, whatever the slots say; the other layouts arrive one at a time.
+ * and two offers, `cartao` and `impacto` (TYTO-850)**, whatever the slots say; the other layouts arrive one at a time.
  *
  * ## vitrine + cartao
  *
@@ -37,6 +37,7 @@ import {
   colorValue,
   contrastRatio,
   frame,
+  group,
   image,
   numberValue,
   rect,
@@ -62,6 +63,7 @@ import {
   plain,
   reportOverflow,
   row,
+  stack,
   weightOf,
 } from '@tyto/template-kit';
 
@@ -252,6 +254,32 @@ interface Geometry {
    * default. The faixa sets its name at the reference size and only shrinks it (TYTO-848).
    */
   readonly nameMaxScale?: number;
+  /** The impacto offer's sizes and room (TYTO-850). */
+  readonly impacto: ImpactoShape;
+}
+
+/**
+ * The impacto offer (TYTO-850), measured on the PM SC boards (`1350_v1`, `1920_v1`): a block in
+ * `destaque` holding the discount's figure at a giant size, its `%` over its unit beside it, a
+ * rule, and the words after the discount stacked on the right; the words before it centred
+ * above the block. Sizes are font sizes, the room is box to box.
+ */
+interface ImpactoShape {
+  readonly figure: number;
+  readonly percent: number;
+  readonly unit: number;
+  /** Between the `%` and the unit under it. */
+  readonly unitGap: number;
+  readonly side: number;
+  /** The side's line advance, as a multiple of its size. */
+  readonly sideLineHeight: number;
+  readonly rule: number;
+  /** Figure to `%`, `%` to the rule, the rule to the side. */
+  readonly gaps: { readonly unit: number; readonly rule: number; readonly side: number };
+  /** Inside the block: above and below, left and right. */
+  readonly padding: { readonly block: number; readonly inline: number };
+  readonly title: number;
+  readonly titleGap: number;
 }
 
 /**
@@ -301,6 +329,19 @@ export const GRID: Geometry = {
   wordmark: { height: 49.5, gap: 13 },
   cardRadius: 39,
   bandShadow: true,
+  impacto: {
+    figure: 140,
+    percent: 82,
+    unit: 39,
+    unitGap: 4,
+    side: 61,
+    sideLineHeight: 1.08,
+    rule: 6,
+    gaps: { unit: 6, rule: 15, side: 17 },
+    padding: { block: 28, inline: 41 },
+    title: 36,
+    titleGap: 36,
+  },
 };
 
 /** The story, board `1920_v1` of the reference: status to name 32 px, the lines 65 and 30. */
@@ -327,6 +368,19 @@ export const STORY: Geometry = {
   wordmark: { height: 57, gap: 16 },
   cardRadius: 39,
   bandShadow: true,
+  impacto: {
+    figure: 192,
+    percent: 112,
+    unit: 53,
+    unitGap: 5,
+    side: 84,
+    sideLineHeight: 1.08,
+    rule: 7,
+    gaps: { unit: 6, rule: 21, side: 25 },
+    padding: { block: 38, inline: 54 },
+    title: 36,
+    titleGap: 57,
+  },
 };
 
 /**
@@ -419,6 +473,12 @@ export function faixaGeometryOf(size: {
   readonly h: number;
 }): Geometry & { readonly faixa: FaixaShape } {
   return size.h / size.w > 1.5 ? FAIXA_STORY : FAIXA_GRID;
+}
+
+/** The offer's layout the brief or the configuration chose; `cartao` and `impacto` are drawn. */
+function offerLayout(context: TemplateContext): string {
+  const value = context.slots['oferta']?.value;
+  return value?.kind === 'enum' ? value.value : 'cartao';
 }
 
 /** The head's layout the brief or the configuration chose; only `faixa` and `vitrine` are drawn. */
@@ -582,7 +642,11 @@ export const build: TemplateBuild = (context: TemplateContext) => {
       const items = levelsOf(textOf(slot));
       return {
         scale: weightOf(slot),
-        build: (_room, scale) =>
+        // An impacto whose main part is no figure falls back to the card, so no brief breaks.
+        build: (room, scale) =>
+          (offerLayout(context) === 'impacto'
+            ? impacto(context, ink, geometry, items, room.width, scale)
+            : undefined) ??
           offer(context, ink, geometry, items, scale, values.segmentPadding * scale),
       };
     },
@@ -753,13 +817,19 @@ function faixaFrame(
     idPrefix: context.idPrefix,
     background: solid(ink('fundo')),
     children: [
-      rect({
-        name: 'faixa',
-        size: { w: width, h: faixa.stripBottom - faixa.photoTop },
-        radius: faixa.radius,
-        fill: solid(ink('destaque')),
-        transform: { x: faixa.margin, y: faixa.photoTop },
-      }),
+      // The strip only holds a status: with none, the photograph stands alone, as on PM SC.
+      ...(words === undefined
+        ? []
+        : [
+            rect({
+              // Not `faixa`: the card's band already carries that name.
+              name: 'tarja',
+              size: { w: width, h: faixa.stripBottom - faixa.photoTop },
+              radius: faixa.radius,
+              fill: solid(ink('destaque')),
+              transform: { x: faixa.margin, y: faixa.photoTop },
+            }),
+          ]),
       // The photograph's own shape, drawn under it, is what masks it: an image has no radius.
       ...(value?.kind === 'image'
         ? [
@@ -1037,6 +1107,153 @@ function offer(
           ]
         : [],
     },
+  });
+}
+
+/* ------------------------------------------------------------- impacto (TYTO-850) -- */
+
+/** A discount read as a figure, an optional `%` and the words after it: `30% OFF`. */
+export function discountOf(
+  text: string,
+): { readonly figure: string; readonly percent: boolean; readonly unit: string } | undefined {
+  const found = /^\s*(\d+(?:[.,]\d+)?)\s*(%?)\s*(.*?)\s*$/u.exec(text);
+  if (found === null) return undefined;
+  return { figure: found[1]!, percent: found[2] === '%', unit: found[3]! };
+}
+
+/**
+ * The impacto offer (TYTO-850): the `::apelo`'s first line read as the card reads it, the main
+ * part a discount drawn giant in a block of `destaque`, the parts after it stacked beside a rule
+ * on the right, the parts before it centred above. `undefined` when the main part is no figure,
+ * and the caller draws the card instead.
+ */
+function impacto(
+  context: TemplateContext,
+  ink: Ink,
+  geometry: Geometry,
+  items: readonly LevelItem[],
+  width: number,
+  scale: number,
+): Block | undefined {
+  const line = items.find((item) => item.kind === 'line');
+  if (line === undefined || line.kind !== 'line') return undefined;
+  const main = line.parts.find((part) => part.position === 'main');
+  if (main === undefined) return undefined;
+  const discount = discountOf(plain(main.words));
+  if (discount === undefined) return undefined;
+
+  const shape = geometry.impacto;
+  const on = ink('texto-faixa');
+  const start = main.words[0]?.range.start ?? 0;
+  const said = (value: string): RichText => [{ kind: 'text', value, range: { start, end: start } }];
+  const piece = (
+    name: string,
+    words: RichText,
+    size: number,
+    weight: number,
+    color: string,
+    lineHeight = LINE_HEIGHT,
+  ): Block => {
+    const style = styleOf(size, weight, color, ink);
+    const natural = naturalWidth(words, style, context.measure) ?? plain(words).length * size * 0.6;
+    return grownTextBlock(words, natural, 0, style, context.measure, {
+      name,
+      align: 'left',
+      lineHeight,
+      overflow: 'grow',
+    });
+  };
+  const space = (room: number): Block => block(room, 0, group({ name: 'espaco', children: [] }));
+
+  const figure = piece('impacto-numero', said(discount.figure), shape.figure * scale, BLACK, on);
+  const unitParts: Block[] = [];
+  if (discount.percent) {
+    unitParts.push(piece('impacto-porcento', said('%'), shape.percent * scale, BLACK, on));
+  }
+  if (discount.unit !== '') {
+    unitParts.push(
+      piece(
+        'impacto-unidade',
+        said(discount.unit.toLocaleUpperCase('pt-BR')),
+        shape.unit * scale,
+        BLACK,
+        on,
+      ),
+    );
+  }
+  const unit =
+    unitParts.length === 0
+      ? undefined
+      : stack({
+          name: 'impacto-unidade',
+          items: unitParts,
+          // As the reference sets them: the `%` from the figure's top, the unit down to its foot.
+          gap: Math.max(
+            shape.unitGap * scale,
+            figure.height - unitParts.reduce((total, part) => total + part.height, 0),
+          ),
+        });
+  const after = line.parts.filter((part) => part.position === 'after');
+  const side =
+    after.length === 0
+      ? undefined
+      : piece(
+          'impacto-lado',
+          upper(joined(after.map((part) => part.words))),
+          shape.side * scale,
+          BLACK,
+          on,
+          shape.sideLineHeight,
+        );
+  const height = Math.max(figure.height, unit?.height ?? 0, side?.height ?? 0);
+  const ruleWidth = shape.rule * scale;
+  const items_: Block[] = [figure];
+  if (unit !== undefined) items_.push(space(shape.gaps.unit * scale), unit);
+  if (side !== undefined) {
+    items_.push(
+      space(shape.gaps.rule * scale),
+      block(
+        ruleWidth,
+        height,
+        rect({ name: 'impacto-fio', size: { w: ruleWidth, h: height }, fill: solid(on) }),
+      ),
+      space(shape.gaps.side * scale),
+      side,
+    );
+  }
+  const content = row({ name: 'impacto-conteudo', align: 'center', items: items_ });
+  const padBlock = shape.padding.block * scale;
+  const padInline = shape.padding.inline * scale;
+  const size = { w: content.width + 2 * padInline, h: content.height + 2 * padBlock };
+  const panel = block(
+    size.w,
+    size.h,
+    group({
+      name: 'impacto',
+      children: [
+        rect({ name: 'impacto-bloco', size, fill: solid(ink('destaque')) }),
+        at(padInline, padBlock, content),
+      ],
+    }),
+  );
+
+  const before = line.parts.filter((part) => part.position === 'before');
+  const title =
+    before.length === 0
+      ? undefined
+      : grownTextBlock(
+          joined(before.map((part) => part.words)),
+          width,
+          0,
+          styleOf(shape.title * scale, LIGHT, ink('texto'), ink),
+          context.measure,
+          { name: 'impacto-titulo', align: 'center', lineHeight: LINE_HEIGHT, overflow: 'grow' },
+        );
+  return stack({
+    name: 'oferta-impacto',
+    align: 'center',
+    gap: shape.titleGap * scale,
+    items: [...(title === undefined ? [] : [title]), panel],
   });
 }
 

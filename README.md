@@ -112,11 +112,19 @@ formats: [grid, story]
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
 
+**0.12.0 draws the `impacto` offer** (TYTO-850), the PM SC reference: the discount as a giant
+figure in a block of `destaque`, its `%` over its unit beside it, a rule, and the words after
+it in Black on the right; the words before it centred above the block. It reads the same
+`::apelo` as the card: `Pacote completo | # 40% OFF | Black \ Friday`. A main part that does
+not start with a figure (`# Garantia de 7 dias`) draws the card instead. Write `oferta: impacto`
+or reach it through a configuration. Under the faixa, a title with nothing before the name now
+draws no strip (PM SC).
+
 **0.11.0 draws the `faixa` head** (TYTO-848), the DETRAN SP reference: the lockup at the top,
 the photograph framed with rounded corners over a strip in `destaque`, the column below on the
 plain ground, the card with square corners and no shadow. The strip holds the parts written
 before the exam's name in the title's first line (`Edital publicado | # Detran SP`), in light
-capitals; a title with nothing before the name draws an empty strip. The name keeps its
+capitals; a title with nothing before the name draws no strip, the photograph alone (PM SC). The name keeps its
 reference size and only shrinks; the kit's pattern is not drawn (the reference has none). Write
 `cabeca: faixa` in the frontmatter, or reach it through a `faixa-cartao` configuration.
 
