@@ -243,6 +243,27 @@ interface Geometry {
   readonly logo: { readonly top: number; readonly height: number };
   /** The kit's wordmark beside the logo: its height and the room between them, centred. */
   readonly wordmark: { readonly height: number; readonly gap: number };
+  /** The offer card's corner radius: rounded under the vitrine head, square under the faixa. */
+  readonly cardRadius: number;
+}
+
+/**
+ * The faixa head (TYTO-848), measured on the DETRAN SP boards: the photograph framed with
+ * rounded corners under the lockup, a strip in `destaque` under it holding the status line, and
+ * the column below on the plain ground, between `columnTop` and `columnBottom`.
+ */
+interface FaixaShape {
+  /** The photograph's frame, left and right margin alike. */
+  readonly margin: number;
+  readonly photoTop: number;
+  readonly photoBottom: number;
+  /** The strip runs from under the photograph to here; the photograph's corners round it. */
+  readonly stripBottom: number;
+  readonly radius: number;
+  /** The status words in the strip: light capitals, centred. */
+  readonly status: { readonly size: number };
+  readonly columnTop: number;
+  readonly columnBottom: number;
 }
 
 /**
@@ -271,6 +292,7 @@ export const GRID: Geometry = {
   proof: { capTop: 1171, size: 33.3 },
   logo: { top: 1245, height: 62 },
   wordmark: { height: 49.5, gap: 13 },
+  cardRadius: 39,
 };
 
 /** The story, board `1920_v1` of the reference: status to name 32 px, the lines 65 and 30. */
@@ -295,6 +317,58 @@ export const STORY: Geometry = {
   proof: { capTop: 1590, size: 36.5 },
   logo: { top: 1687, height: 71 },
   wordmark: { height: 57, gap: 16 },
+  cardRadius: 39,
+};
+
+/**
+ * The faixa head's feed post, board `1350_v2` of the DETRAN SP reference: name 88 px Black, the
+ * card 828 px wide with square corners, the lockup at the top (TYTO-848).
+ */
+export const FAIXA_GRID: Geometry & { readonly faixa: FaixaShape } = {
+  ...GRID,
+  name: { capTop: 716, size: 88 },
+  card: { x: 125, y: 1023, w: 828, h: 218 },
+  band: { y: 1083, h: 95 },
+  title: { capTop: 1042, size: 40 },
+  foot: { capTop: 1189, size: 32 },
+  proof: { capTop: 1259, size: 30 },
+  logo: { top: 41, height: 54 },
+  wordmark: { height: 43, gap: 11 },
+  cardRadius: 0,
+  faixa: {
+    margin: 59,
+    photoTop: 126,
+    photoBottom: 626,
+    stripBottom: 684,
+    radius: 60,
+    status: { size: 40 },
+    columnTop: 700,
+    columnBottom: 1300,
+  },
+};
+
+/** The faixa head's story, board `1920_v2`: name 110.6 px, the card 898 px wide (TYTO-848). */
+export const FAIXA_STORY: Geometry & { readonly faixa: FaixaShape } = {
+  ...STORY,
+  name: { capTop: 974, size: 110.6 },
+  card: { x: 90, y: 1410, w: 898, h: 235 },
+  band: { y: 1474, h: 104 },
+  title: { capTop: 1430, size: 43.4 },
+  foot: { capTop: 1590, size: 34.8 },
+  proof: { capTop: 1666, size: 32.6 },
+  logo: { top: 72, height: 54 },
+  wordmark: { height: 43, gap: 11 },
+  cardRadius: 0,
+  faixa: {
+    margin: 58,
+    photoTop: 157,
+    photoBottom: 877,
+    stripBottom: 934,
+    radius: 60,
+    status: { size: 40 },
+    columnTop: 950,
+    columnBottom: 1720,
+  },
 };
 
 /**
@@ -326,10 +400,23 @@ export function geometryOf(size: { readonly w: number; readonly h: number }): Ge
   return size.h / size.w > 1.5 ? STORY : GRID;
 }
 
+/** The faixa head's geometry for a frame, by the same rule. */
+export function faixaGeometryOf(size: {
+  readonly w: number;
+  readonly h: number;
+}): Geometry & { readonly faixa: FaixaShape } {
+  return size.h / size.w > 1.5 ? FAIXA_STORY : FAIXA_GRID;
+}
+
+/** The head's layout the brief or the configuration chose; only `faixa` and `vitrine` are drawn. */
+function headLayout(context: TemplateContext): string {
+  const value = context.slots['cabeca']?.value;
+  return value?.kind === 'enum' ? value.value : 'vitrine';
+}
+
 /** The panel's side margin for every text, and the card's inner margin for its words. */
 export const TEXT_MARGIN = 60;
 const CARD_PADDING = 48;
-const CARD_RADIUS = 39;
 /** The smallest a card's line shrinks to before it wraps instead. */
 const FIT_FLOOR = 0.7;
 /** The photograph's stand-in when the brief names none. */
@@ -426,23 +513,46 @@ export const ANUNCIO_PARAMETERS = {
  */
 export const build: TemplateBuild = (context: TemplateContext) => {
   const ink = inkOf(context);
-  const geometry = spaced(context, geometryOf(context.size));
+  const faixaGeometry = headLayout(context) === 'faixa' ? faixaGeometryOf(context.size) : undefined;
+  const faixa = faixaGeometry?.faixa;
+  const geometry = spaced(context, faixaGeometry ?? geometryOf(context.size));
   const values = parameterValues(ANUNCIO_PARAMETERS);
 
-  const top = geometry.panelTop + geometry.panelPadding;
+  // The faixa's column sits under the strip, down to the foot, and never raises the photograph.
+  const top = faixa === undefined ? geometry.panelTop + geometry.panelPadding : faixa.columnTop;
   const area = {
     width: context.size.w - 2 * TEXT_MARGIN,
-    height: geometry.logo.top - values.noteGap - top,
+    height:
+      faixa === undefined
+        ? geometry.logo.top - values.noteGap - top
+        : faixa.columnBottom - faixa.columnTop,
   };
-  const reach = Math.max(0, geometry.panelTop - context.size.h * values.photoShare);
+  const reach =
+    faixa === undefined ? Math.max(0, geometry.panelTop - context.size.h * values.photoShare) : 0;
 
   // One column entry per block the brief placed (Tyto ADR 0227, TYTO-840): two `::corpo`, or a
   // shared title and a slide's own, are two blocks, each from its own words at its own `peso`.
   const textOf = (slot: BlockSlot): RichText =>
     slot.value.kind === 'rich-text' ? slot.value.text : EMPTY;
+  // Under the faixa, the parts before the name in the first title's first line go in the strip
+  // (TYTO-848): the first title the artwork draws, found by where its words start in the brief.
+  const firstTitle =
+    context.order?.find((entry) => entry.name === 'titulo' && entry.slot !== undefined)?.slot ??
+    context.slots['titulo'];
+  const statusOf =
+    faixa === undefined || firstTitle === undefined
+      ? undefined
+      : takeStatus(levelsOf(textOf(firstTitle)));
+  const startOf = (text: RichText): number | undefined => text[0]?.range.start;
   const kinds: Record<string, BlockOfKind> = {
     titulo: (slot) => {
-      const items = levelsOf(textOf(slot));
+      const read = levelsOf(textOf(slot));
+      const items =
+        statusOf !== undefined &&
+        firstTitle !== undefined &&
+        startOf(textOf(slot)) === startOf(textOf(firstTitle))
+          ? statusOf.items
+          : read;
       return {
         scale: weightOf(slot),
         build: (room, scale) => head(context, ink, geometry, items, room, scale, values.headShare),
@@ -492,6 +602,10 @@ export const build: TemplateBuild = (context: TemplateContext) => {
   });
   reportOverflow(context.report, column.overflow, 0);
   reportContrast(context, ink);
+
+  if (faixa !== undefined) {
+    return faixaFrame(context, ink, geometry, faixa, statusOf?.status, column.block, top);
+  }
 
   const panelTop = geometry.panelTop - column.rise;
   const logo = lockup(context, geometry, ink('destaque'));
@@ -544,6 +658,114 @@ function lockup(context: TemplateContext, geometry: Geometry, color: string): Bl
     items: [logo, drawBrandMark(wordmark, geometry.wordmark.height, inks, 'wordmark')],
     gap: geometry.wordmark.gap,
     align: 'center',
+  });
+}
+
+/**
+ * A title's first line with the parts before its name taken out, and those parts as the faixa's
+ * status (TYTO-848). A first line that was only those parts is dropped; one with none leaves the
+ * items as they were and no status.
+ */
+function takeStatus(items: readonly LevelItem[]): {
+  readonly items: readonly LevelItem[];
+  readonly status: RichText | undefined;
+} {
+  const [first, ...rest] = items;
+  if (first === undefined || first.kind !== 'line') return { items, status: undefined };
+  const before = first.parts.filter((part) => part.position === 'before');
+  if (before.length === 0) return { items, status: undefined };
+  const kept = first.parts.filter((part) => part.position !== 'before');
+  const status = before.flatMap((part, index): Inline[] => {
+    if (index === 0) return [...part.words];
+    const start = part.words[0]?.range.start ?? 0;
+    return [{ kind: 'text', value: ' ', range: { start, end: start } }, ...part.words];
+  });
+  const line: LevelItem[] = kept.length === 0 ? [] : [{ ...first, parts: kept }];
+  return { items: [...line, ...rest], status };
+}
+
+/**
+ * The faixa head's frame (TYTO-848): the lockup at the top, the photograph framed with rounded
+ * corners over a strip in `destaque` that holds the status, and the column below on the plain
+ * ground. No pattern: the reference has none.
+ */
+function faixaFrame(
+  context: TemplateContext,
+  ink: Ink,
+  geometry: Geometry,
+  faixa: FaixaShape,
+  status: RichText | undefined,
+  column: Block,
+  top: number,
+) {
+  const width = context.size.w - 2 * faixa.margin;
+  const photoSize = { w: width, h: faixa.photoBottom - faixa.photoTop };
+  const frameId = `${context.idPrefix}.moldura`;
+  const value = context.slots['imagem']?.value;
+  const picture: NodeDraft =
+    value?.kind === 'image'
+      ? image({
+          name: 'imagem',
+          asset: value.asset,
+          size: photoSize,
+          fit: 'cover',
+          mask: { nodeId: frameId, mode: 'alpha' },
+          transform: { x: faixa.margin, y: faixa.photoTop },
+        })
+      : rect({
+          name: 'imagem',
+          size: photoSize,
+          radius: faixa.radius,
+          fill: solid(NO_PHOTO),
+          transform: { x: faixa.margin, y: faixa.photoTop },
+        });
+  const stripHeight = faixa.stripBottom - faixa.photoBottom;
+  const words =
+    status === undefined
+      ? undefined
+      : grownTextBlock(
+          upper(status),
+          width,
+          0,
+          styleOf(faixa.status.size, LIGHT, ink('texto-faixa'), ink),
+          context.measure,
+          { name: 'status', align: 'center', lineHeight: LINE_HEIGHT, overflow: 'grow' },
+        );
+  const logo = lockup(context, geometry, ink('destaque'));
+
+  return frame({
+    format: context.format,
+    size: context.size,
+    idPrefix: context.idPrefix,
+    background: solid(ink('fundo')),
+    children: [
+      rect({
+        name: 'faixa',
+        size: { w: width, h: faixa.stripBottom - faixa.photoTop },
+        radius: faixa.radius,
+        fill: solid(ink('destaque')),
+        transform: { x: faixa.margin, y: faixa.photoTop },
+      }),
+      // The photograph's own shape, drawn under it, is what masks it: an image has no radius.
+      ...(value?.kind === 'image'
+        ? [
+            rect({
+              id: frameId,
+              name: 'moldura',
+              size: photoSize,
+              radius: faixa.radius,
+              fill: solid(ink('destaque')),
+              transform: { x: faixa.margin, y: faixa.photoTop },
+            }),
+          ]
+        : []),
+      picture,
+      ...(words === undefined
+        ? []
+        : [at(faixa.margin, faixa.photoBottom + (stripHeight - words.height) / 2, words)]),
+      at(TEXT_MARGIN, top, column),
+      at((context.size.w - logo.width) / 2, geometry.logo.top, logo),
+    ],
   });
 }
 
@@ -775,7 +997,7 @@ function offer(
   return drawCard(segments, {
     name: 'cartao',
     width: card.w,
-    radius: CARD_RADIUS,
+    radius: geometry.cardRadius,
     stroke: { paint: solid(ink('destaque')), width: 2, align: 'inside' },
     band: {
       name: 'faixa',
