@@ -66,6 +66,8 @@ describe('the faixa head', () => {
     const document = await html(brief('faixa', '# Detran SP | ## Edital publicado'));
 
     expect(document).not.toContain('data-name="status"');
+    // No status, no strip: the photograph stands alone, as on PM SC (TYTO-850).
+    expect(document).not.toContain('data-name="tarja"');
     expect(document).toMatch(/data-name="titulo"[^>]*>.*Edital publicado/);
   });
 
@@ -73,10 +75,10 @@ describe('the faixa head', () => {
     const document = await html(brief('faixa', 'Edital publicado | # Detran SP'));
     const { faixa } = FAIXA_GRID;
 
-    expect(ruleOf(document, 'faixa')).toContain(
+    expect(ruleOf(document, 'tarja')).toContain(
       `matrix(1, 0, 0, 1, ${String(faixa.margin)}, ${String(faixa.photoTop)})`,
     );
-    expect(ruleOf(document, 'faixa')).toContain('background-color: #1363d0');
+    expect(ruleOf(document, 'tarja')).toContain('background-color: #1363d0');
     expect(ruleOf(document, 'imagem')).toContain(`border-radius: ${String(faixa.radius)}px`);
     expect(ruleOf(document, 'logo')).toContain(`, ${String(FAIXA_GRID.logo.top)})`);
     expect(document).not.toContain('data-name="painel"');

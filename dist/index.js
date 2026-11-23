@@ -23867,7 +23867,8 @@ function faixaFrame(context, ink, geometry, faixa, status, column, top) {
       // The strip only holds a status: with none, the photograph stands alone, as on PM SC.
       ...words === void 0 ? [] : [
         rect({
-          name: "faixa",
+          // Not `faixa`: the card's band already carries that name.
+          name: "tarja",
           size: { w: width, h: faixa.stripBottom - faixa.photoTop },
           radius: faixa.radius,
           fill: solid(ink("destaque")),

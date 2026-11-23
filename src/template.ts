@@ -10,7 +10,7 @@
  * The head's layout (`cabeca`) and the offer's (`oferta`) are enum slots, so each named variant
  * (`vitrine-cartao`, `faixa-lista`…) is a configuration of the plugin file that defaults them
  * (Tyto ADR 0151, TYTO-440). **Two heads are drawn so far, `vitrine` and `faixa` (TYTO-848),
- * and one offer, `cartao`**, whatever the slots say; the other layouts arrive one at a time.
+ * and two offers, `cartao` and `impacto` (TYTO-850)**, whatever the slots say; the other layouts arrive one at a time.
  *
  * ## vitrine + cartao
  *
@@ -822,7 +822,8 @@ function faixaFrame(
         ? []
         : [
             rect({
-              name: 'faixa',
+              // Not `faixa`: the card's band already carries that name.
+              name: 'tarja',
               size: { w: width, h: faixa.stripBottom - faixa.photoTop },
               radius: faixa.radius,
               fill: solid(ink('destaque')),

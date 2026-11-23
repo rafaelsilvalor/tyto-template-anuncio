@@ -1,5 +1,5 @@
 name: anuncio
-version: 0.11.0
+version: 0.12.0
 description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
@@ -15,7 +15,7 @@ slots:
   # The head's layout. Each named variant is a configuration that defaults it; the brief may
   # still write it in the frontmatter. `vitrine` and `faixa` are drawn so far.
   cabeca: { type: enum, values: [vitrine, faixa, lateral, manchete, noturna], default: vitrine }
-  # The offer's layout, the same way. Only `cartao` is drawn so far.
+  # The offer's layout, the same way. `cartao` and `impacto` are drawn so far.
   oferta: { type: enum, values: [cartao, dupla, lista, chamada, impacto], default: cartao }
   # The head, written once for every artwork, in the shared vocabulary's levels
   # (Tyto docs/slot-vocabulary.md): `|` between the parts of a line, `#` the exam's name, `##`
