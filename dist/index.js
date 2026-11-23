@@ -23560,7 +23560,7 @@ var FAIXA_GRID = {
     radius: 60,
     status: { size: 40 },
     columnTop: 715,
-    columnBottom: 1345
+    columnBottom: 1300
   }
 };
 var FAIXA_STORY = {
@@ -23584,7 +23584,7 @@ var FAIXA_STORY = {
     radius: 60,
     status: { size: 40 },
     columnTop: 971,
-    columnBottom: 1781
+    columnBottom: 1830
   }
 };
 var PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 };
@@ -23729,7 +23729,8 @@ var build = (context) => {
       const isHead = (name) => name === "titulo" || name === "corpo";
       return isHead(above) || isHead(below) ? values.headGap : geometry.proofGap;
     },
-    parameters: { reach }
+    // The faixa's column starts under the strip, the name where the reference sets it.
+    parameters: faixa === void 0 ? { reach } : { reach, verticalAlign: "start" }
   });
   reportOverflow(context.report, column.overflow, 0);
   reportContrast(context, ink);

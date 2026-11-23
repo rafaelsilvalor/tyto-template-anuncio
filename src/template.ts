@@ -354,7 +354,7 @@ export const FAIXA_GRID: Geometry & { readonly faixa: FaixaShape } = {
     radius: 60,
     status: { size: 40 },
     columnTop: 715,
-    columnBottom: 1345,
+    columnBottom: 1300,
   },
 };
 
@@ -380,7 +380,7 @@ export const FAIXA_STORY: Geometry & { readonly faixa: FaixaShape } = {
     radius: 60,
     status: { size: 40 },
     columnTop: 971,
-    columnBottom: 1781,
+    columnBottom: 1830,
   },
 };
 
@@ -611,7 +611,8 @@ export const build: TemplateBuild = (context: TemplateContext) => {
       const isHead = (name: string): boolean => name === 'titulo' || name === 'corpo';
       return isHead(above) || isHead(below) ? values.headGap : geometry.proofGap;
     },
-    parameters: { reach },
+    // The faixa's column starts under the strip, the name where the reference sets it.
+    parameters: faixa === undefined ? { reach } : { reach, verticalAlign: 'start' },
   });
   reportOverflow(context.report, column.overflow, 0);
   reportContrast(context, ink);
