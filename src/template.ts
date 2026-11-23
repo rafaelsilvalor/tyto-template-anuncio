@@ -9,8 +9,8 @@
  *
  * The head's layout (`cabeca`) and the offer's (`oferta`) are enum slots, so each named variant
  * (`vitrine-cartao`, `faixa-lista`…) is a configuration of the plugin file that defaults them
- * (Tyto ADR 0151, TYTO-440). **Only `vitrine` and `cartao` are drawn so far**, whatever the
- * slots say; the other layouts arrive one at a time.
+ * (Tyto ADR 0151, TYTO-440). **Two heads are drawn so far, `vitrine` and `faixa` (TYTO-848),
+ * and one offer, `cartao`**, whatever the slots say; the other layouts arrive one at a time.
  *
  * ## vitrine + cartao
  *
