@@ -96,3 +96,35 @@ describe('a colour mark', () => {
     expect(diagnostics.filter((item) => item.code === 'W_TEMPLATE_LOW_CONTRAST')).toHaveLength(0);
   });
 });
+
+describe('more highlight colours (TYTO-847)', () => {
+  it('paints the price in destaque-2 while the name keeps destaque', async () => {
+    const { html } = await compiled(
+      brief(
+        "destaque-2: '#c8102e'",
+        '## Ganhe até {cor:destaque-2}R$ 16 mil{/} e {cor:destaque-3}bônus{/}',
+      ),
+    );
+
+    expect(spanStyle(html, 'R$ 16 mil')).toContain('color: #c8102e');
+    // destaque-3 was not set: it is destaque's blue, as is the name.
+    expect(spanStyle(html, 'bônus')).toContain('color: #1363d0');
+    expect(spanStyle(html, 'CONCURSO ')).toContain('color: #1363d0');
+  });
+
+  it('warns when a second highlight is too light on the panel', async () => {
+    const { diagnostics } = await compiled(
+      brief("destaque-2: '#f0f0f0'", '## Ganhe até {cor:destaque-2}R$ 16 mil{/}'),
+    );
+
+    expect(diagnostics.filter((item) => item.code === 'W_TEMPLATE_LOW_CONTRAST')).toHaveLength(1);
+  });
+
+  it('takes a colour set by the frontmatter only for the names the template declares', async () => {
+    const { diagnostics } = await compiled(
+      brief("destaque-4: '#c8102e'", '## Ganhe até R$ 16 mil'),
+    );
+
+    expect(diagnostics.map((item) => item.code)).toContain('E_UNKNOWN_SLOT');
+  });
+});

@@ -1,5 +1,5 @@
 name: anuncio
-version: 0.8.0
+version: 0.9.0
 description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
@@ -66,6 +66,10 @@ adjustments:
 values:
   # The exam's name, the card's outline and its band.
   destaque: { type: color, default: '#1363d0' }
+  # A second and a third highlight, reached only by a colour mark: `{cor:destaque-2}R$ 16 mil{/}`
+  # (TYTO-847). Their default is `destaque`'s, so set the one you mark in the frontmatter.
+  destaque-2: { type: color, default: '#1363d0' }
+  destaque-3: { type: color, default: '#1363d0' }
   # The panel under the words.
   fundo: { type: color, default: '#f7f4f4' }
   # Every word on the panel.

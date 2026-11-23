@@ -112,11 +112,14 @@ formats: [grid, story]
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
 
-**Unreleased: `{cor:<name>}…{/}` paints a span** (TYTO-846) in one of the declared colours, by
+**0.9.0 paints a span with a colour mark, in up to three highlights.** `{cor:<name>}…{/}`
+(TYTO-846) paints a span in one of the declared colours, by
 its name: `## Ganhe até {cor:destaque}R$ 16 mil{/}` paints only the price. Colour only: the words
 keep their level's weight, and `**…**` makes them heavier. A name the template does not declare
 leaves the words in their level's colour. A marked colour on the panel is checked against
-`fundo` like the name is.
+`fundo` like the name is. Two more highlights, `destaque-2` and `destaque-3` (TYTO-847), are
+reached only by the mark: set `destaque-2: '#c8102e'` in the frontmatter and write
+`{cor:destaque-2}R$ 16 mil{/}`. Unset, they are `destaque`'s default blue.
 
 **0.8.0 draws the kit's lockup and pattern:** the kit's wordmark beside its logo, both in
 `destaque`, at the reference's sizes (Tyto ADR 0066), and the kit's background pattern over the
