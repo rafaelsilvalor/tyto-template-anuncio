@@ -112,6 +112,12 @@ formats: [grid, story]
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
 
+**0.13.0 sets the references' gaps** (TYTO-852). Measured ink to ink against TRT 4 (vitrine)
+and DETRAN SP (faixa): the room between two parts of one line, the status and the name, drops
+from 29/32 px to 15/20 (feed/story); the faixa gets its own name, line, paragraph, head and note
+gaps instead of the vitrine's. Every gap now lands within 6 px of its reference. Briefs move:
+lines sit closer, and a column that had to shrink shrinks less.
+
 **0.12.0 draws the `impacto` offer** (TYTO-850), the PM SC reference: the discount as a giant
 figure in a block of `destaque`, its `%` over its unit beside it, a rule, and the words after
 it in Black on the right; the words before it centred above the block. It reads the same
