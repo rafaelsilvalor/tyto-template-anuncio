@@ -23513,7 +23513,20 @@ var GRID = {
   logo: { top: 1245, height: 62 },
   wordmark: { height: 49.5, gap: 13 },
   cardRadius: 39,
-  bandShadow: true
+  bandShadow: true,
+  impacto: {
+    figure: 140,
+    percent: 82,
+    unit: 39,
+    unitGap: 4,
+    side: 61,
+    sideLineHeight: 1.08,
+    rule: 6,
+    gaps: { unit: 6, rule: 15, side: 17 },
+    padding: { block: 28, inline: 41 },
+    title: 36,
+    titleGap: 36
+  }
 };
 var STORY = {
   panelTop: 745,
@@ -23537,7 +23550,20 @@ var STORY = {
   logo: { top: 1687, height: 71 },
   wordmark: { height: 57, gap: 16 },
   cardRadius: 39,
-  bandShadow: true
+  bandShadow: true,
+  impacto: {
+    figure: 192,
+    percent: 112,
+    unit: 53,
+    unitGap: 5,
+    side: 84,
+    sideLineHeight: 1.08,
+    rule: 7,
+    gaps: { unit: 6, rule: 21, side: 25 },
+    padding: { block: 38, inline: 54 },
+    title: 36,
+    titleGap: 57
+  }
 };
 var FAIXA_GRID = {
   ...GRID,
@@ -23601,6 +23627,10 @@ function geometryOf(size) {
 }
 function faixaGeometryOf(size) {
   return size.h / size.w > 1.5 ? FAIXA_STORY : FAIXA_GRID;
+}
+function offerLayout(context) {
+  const value = context.slots["oferta"]?.value;
+  return value?.kind === "enum" ? value.value : "cartao";
 }
 function headLayout(context) {
   const value = context.slots["cabeca"]?.value;
@@ -23704,7 +23734,8 @@ var build = (context) => {
       const items = levelsOf(textOf(slot));
       return {
         scale: weightOf(slot),
-        build: (_room, scale) => offer(context, ink, geometry, items, scale, values.segmentPadding * scale)
+        // An impacto whose main part is no figure falls back to the card, so no brief breaks.
+        build: (room, scale) => (offerLayout(context) === "impacto" ? impacto(context, ink, geometry, items, room.width, scale) : void 0) ?? offer(context, ink, geometry, items, scale, values.segmentPadding * scale)
       };
     },
     nota: (slot) => {
@@ -24021,6 +24052,106 @@ function offer(context, ink, geometry, items, scale, padding) {
         }
       ] : []
     }
+  });
+}
+function discountOf(text2) {
+  const found = /^\s*(\d+(?:[.,]\d+)?)\s*(%?)\s*(.*?)\s*$/u.exec(text2);
+  if (found === null) return void 0;
+  return { figure: found[1], percent: found[2] === "%", unit: found[3] };
+}
+function impacto(context, ink, geometry, items, width, scale) {
+  const line = items.find((item) => item.kind === "line");
+  if (line === void 0 || line.kind !== "line") return void 0;
+  const main = line.parts.find((part) => part.position === "main");
+  if (main === void 0) return void 0;
+  const discount = discountOf(plain(main.words));
+  if (discount === void 0) return void 0;
+  const shape = geometry.impacto;
+  const on = ink("texto-faixa");
+  const start = main.words[0]?.range.start ?? 0;
+  const said = (value) => [{ kind: "text", value, range: { start, end: start } }];
+  const piece = (name, words, size2, weight, color2, lineHeight = LINE_HEIGHT) => {
+    const style2 = styleOf(size2, weight, color2, ink);
+    const natural = naturalWidth(words, style2, context.measure) ?? plain(words).length * size2 * 0.6;
+    return grownTextBlock(words, natural, 0, style2, context.measure, {
+      name,
+      align: "left",
+      lineHeight,
+      overflow: "grow"
+    });
+  };
+  const space = (room) => block(room, 0, group({ name: "espaco", children: [] }));
+  const figure = piece("impacto-numero", said(discount.figure), shape.figure * scale, BLACK, on);
+  const unitParts = [];
+  if (discount.percent) {
+    unitParts.push(piece("impacto-porcento", said("%"), shape.percent * scale, BLACK, on));
+  }
+  if (discount.unit !== "") {
+    unitParts.push(
+      piece(
+        "impacto-unidade",
+        said(discount.unit.toLocaleUpperCase("pt-BR")),
+        shape.unit * scale,
+        BLACK,
+        on
+      )
+    );
+  }
+  const unit = unitParts.length === 0 ? void 0 : stack({ name: "impacto-unidade", items: unitParts, gap: shape.unitGap * scale });
+  const after = line.parts.filter((part) => part.position === "after");
+  const side = after.length === 0 ? void 0 : piece(
+    "impacto-lado",
+    upper(joined(after.map((part) => part.words))),
+    shape.side * scale,
+    BLACK,
+    on,
+    shape.sideLineHeight
+  );
+  const height = Math.max(figure.height, unit?.height ?? 0, side?.height ?? 0);
+  const ruleWidth = shape.rule * scale;
+  const items_ = [figure];
+  if (unit !== void 0) items_.push(space(shape.gaps.unit * scale), unit);
+  if (side !== void 0) {
+    items_.push(
+      space(shape.gaps.rule * scale),
+      block(
+        ruleWidth,
+        height,
+        rect({ name: "impacto-fio", size: { w: ruleWidth, h: height }, fill: solid(on) })
+      ),
+      space(shape.gaps.side * scale),
+      side
+    );
+  }
+  const content = row({ name: "impacto-conteudo", align: "center", items: items_ });
+  const padBlock = shape.padding.block * scale;
+  const padInline = shape.padding.inline * scale;
+  const size = { w: content.width + 2 * padInline, h: content.height + 2 * padBlock };
+  const panel = block(
+    size.w,
+    size.h,
+    group({
+      name: "impacto",
+      children: [
+        rect({ name: "impacto-bloco", size, fill: solid(ink("destaque")) }),
+        at(padInline, padBlock, content)
+      ]
+    })
+  );
+  const before = line.parts.filter((part) => part.position === "before");
+  const title = before.length === 0 ? void 0 : grownTextBlock(
+    joined(before.map((part) => part.words)),
+    width,
+    0,
+    styleOf(shape.title * scale, LIGHT, ink("texto"), ink),
+    context.measure,
+    { name: "impacto-titulo", align: "center", lineHeight: LINE_HEIGHT, overflow: "grow" }
+  );
+  return stack({
+    name: "oferta-impacto",
+    align: "center",
+    gap: shape.titleGap * scale,
+    items: [...title === void 0 ? [] : [title], panel]
   });
 }
 function note(context, ink, geometry, words, room, scale) {
