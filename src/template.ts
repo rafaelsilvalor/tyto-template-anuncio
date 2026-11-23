@@ -27,12 +27,14 @@
  * that edge's corners, so a card with no title has its band on top with rounded top corners.
  * This is the shape TYTO-800 moves into the kit.
  *
- * The logo is the brand kit's (Tyto ADR 0063), a placeholder without one; every colour is a
- * declared value (Tyto ADR 0153).
+ * The logo is the brand kit's (Tyto ADR 0063), a placeholder without one, with the kit's
+ * wordmark beside it when the kit has one (ADR 0066). The panel carries the kit's background
+ * pattern when it has one (ADR 0228), faint and cut to the panel. Every colour is a declared
+ * value (Tyto ADR 0153); the pattern takes `destaque` and `texto`, so it follows the brief.
  */
 
 import { colorValue, contrastRatio, frame, image, rect, solid } from '@tyto/core/template';
-import { drawLogo, oneInk } from '@tyto/house-style';
+import { drawBrandMark, drawLogo, drawPattern, oneInk } from '@tyto/house-style';
 import {
   at,
   block,
@@ -170,6 +172,8 @@ interface Geometry {
   readonly foot: Spot;
   readonly proof: Spot;
   readonly logo: { readonly top: number; readonly height: number };
+  /** The kit's wordmark beside the logo: its height and the room between them, centred. */
+  readonly wordmark: { readonly height: number; readonly gap: number };
 }
 
 /**
@@ -196,6 +200,7 @@ export const GRID: Geometry = {
   foot: { capTop: 1084, size: 33.6 },
   proof: { capTop: 1171, size: 33.3 },
   logo: { top: 1245, height: 62 },
+  wordmark: { height: 49, gap: 13 },
 };
 
 /** The story, board `1920_v1` of the reference: status to name 32 px, the lines 65 and 30. */
@@ -218,7 +223,16 @@ export const STORY: Geometry = {
   foot: { capTop: 1495, size: 36.8 },
   proof: { capTop: 1590, size: 36.5 },
   logo: { top: 1687, height: 71 },
+  wordmark: { height: 56, gap: 16 },
 };
+
+/**
+ * The kit's pattern as the reference lays it (`Malha`, TYTO-844), the same in both formats: a
+ * tile 336 px wide, at 8%, registered to the frame rather than the panel — a tile corner sits
+ * at x 40 and at y 217 modulo 336, on the feed post (553) and on the story (890) alike — so the
+ * lattice stays put when a long head raises the panel.
+ */
+export const PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 } as const;
 
 /** A frame taller than one and a half times its width is laid out as the story. */
 export function geometryOf(size: { readonly w: number; readonly h: number }): Geometry {
@@ -393,7 +407,17 @@ export const build: TemplateBuild = (context: TemplateContext) => {
   reportContrast(context, ink);
 
   const panelTop = geometry.panelTop - column.rise;
-  const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink('destaque')));
+  const logo = lockup(context, geometry, ink('destaque'));
+  const panelId = `${context.idPrefix}.painel`;
+  const panelSize = { w: context.size.w, h: context.size.h - panelTop };
+  const pattern = drawPattern(context.brand, {
+    size: panelSize,
+    tileWidth: PATTERN.tileWidth,
+    inks: { primary: ink('destaque'), secondary: ink('texto') },
+    opacity: PATTERN.opacity,
+    mask: { nodeId: panelId, mode: 'alpha' },
+    phase: { x: PATTERN.corner.x, y: PATTERN.corner.y - panelTop },
+  });
 
   return frame({
     format: context.format,
@@ -403,17 +427,38 @@ export const build: TemplateBuild = (context: TemplateContext) => {
     children: [
       photo(context, geometry),
       rect({
+        // Named only when a pattern is masked by it: an explicit id changes the HTML's ids, and
+        // a render without a kit keeps its bytes.
+        ...(pattern === undefined ? {} : { id: panelId }),
         name: 'painel',
-        size: { w: context.size.w, h: context.size.h - panelTop },
+        size: panelSize,
         radius: [geometry.panelRadius, geometry.panelRadius, 0, 0],
         fill: solid(ink('fundo')),
         transform: { y: panelTop },
       }),
+      ...(pattern === undefined ? [] : [at(0, panelTop, pattern)]),
       at(TEXT_MARGIN, top - column.rise, column.block),
       at((context.size.w - logo.width) / 2, geometry.logo.top, logo),
     ],
   });
 };
+
+/**
+ * The kit's logo, and its wordmark beside it when the kit has one, centred on each other as the
+ * reference sets them, all in one ink. Without a wordmark it is the logo alone, as before.
+ */
+function lockup(context: TemplateContext, geometry: Geometry, color: string): Block {
+  const inks = oneInk(color);
+  const logo = drawLogo(context.brand, geometry.logo.height, inks);
+  const wordmark = context.brand.wordmark;
+  if (wordmark === undefined) return logo;
+  return row({
+    name: 'assinatura',
+    items: [logo, drawBrandMark(wordmark, geometry.wordmark.height, inks, 'wordmark')],
+    gap: geometry.wordmark.gap,
+    align: 'center',
+  });
+}
 
 /** The head's photograph, filling the frame's width down to below the panel's corners. */
 function photo(context: TemplateContext, geometry: Geometry): NodeDraft {
