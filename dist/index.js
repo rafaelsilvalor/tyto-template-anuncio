@@ -23500,7 +23500,8 @@ var GRID = {
   name: { capTop: 607, size: 69.6 },
   support: { capTop: 711, size: 39 },
   salary: { capTop: 766, size: 52 },
-  partGap: 29,
+  // 15, not 29: the reference's status sits 25 px of ink over the name (TYTO-852).
+  partGap: 15,
   nameGap: 35.6,
   lineGap: 15.5,
   paragraphGap: 35.6,
@@ -23537,7 +23538,8 @@ var STORY = {
   name: { capTop: 929, size: 79.4 },
   support: { capTop: 1072, size: 39 },
   salary: { capTop: 1142, size: 66.4 },
-  partGap: 32,
+  // 20, not 32: the reference's 29 px of ink between the status and the name (TYTO-852).
+  partGap: 20,
   nameGap: 65,
   lineGap: 30,
   paragraphGap: 65,
@@ -23575,6 +23577,13 @@ var FAIXA_GRID = {
   proof: { capTop: 1259, size: 30 },
   logo: { top: 41, height: 54 },
   wordmark: { height: 43, gap: 11 },
+  // The DETRAN SP feed's room, ink to ink (TYTO-852): name to the next line 37, two supporting
+  // lines 11, a blank line's room 32, the body to the card 43, the card to the note 22.
+  nameGap: 16.6,
+  lineGap: 9.5,
+  paragraphGap: 22.6,
+  headGap: 38,
+  proofGap: 21,
   cardRadius: 0,
   bandShadow: false,
   nameMaxScale: 1,
@@ -23599,6 +23608,13 @@ var FAIXA_STORY = {
   proof: { capTop: 1666, size: 32.6 },
   logo: { top: 72, height: 54 },
   wordmark: { height: 43, gap: 11 },
+  // The DETRAN SP story's room, ink to ink (TYTO-852): name to the next line 46, two supporting
+  // lines 13, a blank line's room 62, the body to the card 81, the card to the note 23.
+  nameGap: 17,
+  lineGap: 10,
+  paragraphGap: 39,
+  headGap: 74,
+  proofGap: 22,
   cardRadius: 0,
   bandShadow: false,
   nameMaxScale: 1,
@@ -23758,7 +23774,7 @@ var build = (context) => {
       if (above === "titulo" && below === "corpo") return geometry.nameGap;
       if (above === below && (above === "titulo" || above === "corpo")) return geometry.nameGap;
       const isHead = (name) => name === "titulo" || name === "corpo";
-      return isHead(above) || isHead(below) ? values.headGap : geometry.proofGap;
+      return isHead(above) || isHead(below) ? geometry.headGap ?? values.headGap : geometry.proofGap;
     },
     // The faixa's column starts under the strip, the name where the reference sets it.
     parameters: faixa === void 0 ? { reach } : { reach, verticalAlign: "start" }
