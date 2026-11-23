@@ -11,7 +11,7 @@ machine, under the brand a plugin file's configuration names (Tyto ADR 0063, ADR
 a kit it draws a placeholder logo, no wordmark and no pattern (ADR 0065). The example briefs are
 invented copy.
 
-**One layout is drawn so far: `vitrine` with `cartao`.** The photograph fills the top; a panel
+**Two layouts are drawn so far: `vitrine` with `cartao`, and `faixa` with `cartao` (below).** The photograph fills the top; a panel
 with rounded corners rises over it, and in it one column of Tyto's kit (`blockColumn`, Tyto
 ADR 0224) holds the head, the offer card and the note **in the order the brief wrote them**,
 centred together between the panel's top and the logo, which stays pinned at the foot. The
@@ -111,6 +111,14 @@ formats: [grid, story]
 
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
+
+**0.11.0 draws the `faixa` head** (TYTO-848), the DETRAN SP reference: the lockup at the top,
+the photograph framed with rounded corners over a strip in `destaque`, the column below on the
+plain ground, the card with square corners and no shadow. The strip holds the parts written
+before the exam's name in the title's first line (`Edital publicado | # Detran SP`), in light
+capitals; a title with nothing before the name draws an empty strip. The name keeps its
+reference size and only shrinks; the kit's pattern is not drawn (the reference has none). Write
+`cabeca: faixa` in the frontmatter, or reach it through a `faixa-cartao` configuration.
 
 **0.10.0 lets a blank line open room** (TYTO-845, Tyto ADR 0205): in `::titulo` or `::corpo`,
 lines written together stay at the line gap, and a blank line between two lines opens the

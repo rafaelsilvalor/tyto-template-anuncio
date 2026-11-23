@@ -23511,7 +23511,9 @@ var GRID = {
   foot: { capTop: 1084, size: 33.6 },
   proof: { capTop: 1171, size: 33.3 },
   logo: { top: 1245, height: 62 },
-  wordmark: { height: 49.5, gap: 13 }
+  wordmark: { height: 49.5, gap: 13 },
+  cardRadius: 39,
+  bandShadow: true
 };
 var STORY = {
   panelTop: 745,
@@ -23533,7 +23535,57 @@ var STORY = {
   foot: { capTop: 1495, size: 36.8 },
   proof: { capTop: 1590, size: 36.5 },
   logo: { top: 1687, height: 71 },
-  wordmark: { height: 57, gap: 16 }
+  wordmark: { height: 57, gap: 16 },
+  cardRadius: 39,
+  bandShadow: true
+};
+var FAIXA_GRID = {
+  ...GRID,
+  name: { capTop: 716, size: 88 },
+  card: { x: 125, y: 1023, w: 828, h: 218 },
+  band: { y: 1083, h: 95 },
+  title: { capTop: 1042, size: 40 },
+  foot: { capTop: 1189, size: 32 },
+  proof: { capTop: 1259, size: 30 },
+  logo: { top: 41, height: 54 },
+  wordmark: { height: 43, gap: 11 },
+  cardRadius: 0,
+  bandShadow: false,
+  nameMaxScale: 1,
+  faixa: {
+    margin: 59,
+    photoTop: 126,
+    photoBottom: 626,
+    stripBottom: 684,
+    radius: 60,
+    status: { size: 40 },
+    columnTop: 715,
+    columnBottom: 1300
+  }
+};
+var FAIXA_STORY = {
+  ...STORY,
+  name: { capTop: 974, size: 110.6 },
+  card: { x: 90, y: 1410, w: 898, h: 235 },
+  band: { y: 1474, h: 104 },
+  title: { capTop: 1430, size: 43.4 },
+  foot: { capTop: 1590, size: 34.8 },
+  proof: { capTop: 1666, size: 32.6 },
+  logo: { top: 72, height: 54 },
+  wordmark: { height: 43, gap: 11 },
+  cardRadius: 0,
+  bandShadow: false,
+  nameMaxScale: 1,
+  faixa: {
+    margin: 58,
+    photoTop: 157,
+    photoBottom: 877,
+    stripBottom: 934,
+    radius: 60,
+    status: { size: 40 },
+    columnTop: 971,
+    columnBottom: 1830
+  }
 };
 var PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 };
 var SPACING_DEFAULTS = { respiro: 1, "espaco-partes": 1 };
@@ -23547,9 +23599,15 @@ function spaced(context, geometry) {
 function geometryOf(size) {
   return size.h / size.w > 1.5 ? STORY : GRID;
 }
+function faixaGeometryOf(size) {
+  return size.h / size.w > 1.5 ? FAIXA_STORY : FAIXA_GRID;
+}
+function headLayout(context) {
+  const value = context.slots["cabeca"]?.value;
+  return value?.kind === "enum" ? value.value : "vitrine";
+}
 var TEXT_MARGIN = 60;
 var CARD_PADDING = 48;
-var CARD_RADIUS = 39;
 var FIT_FLOOR = 0.7;
 var NO_PHOTO = "#c9ccd2";
 var DOT = 12;
@@ -23612,18 +23670,24 @@ var ANUNCIO_PARAMETERS = {
 };
 var build = (context) => {
   const ink = inkOf(context);
-  const geometry = spaced(context, geometryOf(context.size));
+  const faixaGeometry = headLayout(context) === "faixa" ? faixaGeometryOf(context.size) : void 0;
+  const faixa = faixaGeometry?.faixa;
+  const geometry = spaced(context, faixaGeometry ?? geometryOf(context.size));
   const values = parameterValues(ANUNCIO_PARAMETERS);
-  const top = geometry.panelTop + geometry.panelPadding;
+  const top = faixa === void 0 ? geometry.panelTop + geometry.panelPadding : faixa.columnTop;
   const area = {
     width: context.size.w - 2 * TEXT_MARGIN,
-    height: geometry.logo.top - values.noteGap - top
+    height: faixa === void 0 ? geometry.logo.top - values.noteGap - top : faixa.columnBottom - faixa.columnTop
   };
-  const reach = Math.max(0, geometry.panelTop - context.size.h * values.photoShare);
+  const reach = faixa === void 0 ? Math.max(0, geometry.panelTop - context.size.h * values.photoShare) : 0;
   const textOf = (slot) => slot.value.kind === "rich-text" ? slot.value.text : EMPTY;
+  const firstTitle = context.order?.find((entry) => entry.name === "titulo" && entry.slot !== void 0)?.slot ?? context.slots["titulo"];
+  const statusOf = faixa === void 0 || firstTitle === void 0 ? void 0 : takeStatus(levelsOf(textOf(firstTitle)));
+  const startOf = (text2) => text2[0]?.range.start;
   const kinds = {
     titulo: (slot) => {
-      const items = levelsOf(textOf(slot));
+      const read = levelsOf(textOf(slot));
+      const items = statusOf !== void 0 && firstTitle !== void 0 && startOf(textOf(slot)) === startOf(textOf(firstTitle)) ? statusOf.items : read;
       return {
         scale: weightOf(slot),
         build: (room, scale) => head(context, ink, geometry, items, room, scale, values.headShare)
@@ -23665,10 +23729,14 @@ var build = (context) => {
       const isHead = (name) => name === "titulo" || name === "corpo";
       return isHead(above) || isHead(below) ? values.headGap : geometry.proofGap;
     },
-    parameters: { reach }
+    // The faixa's column starts under the strip, the name where the reference sets it.
+    parameters: faixa === void 0 ? { reach } : { reach, verticalAlign: "start" }
   });
   reportOverflow(context.report, column.overflow, 0);
   reportContrast(context, ink);
+  if (faixa !== void 0) {
+    return faixaFrame(context, ink, geometry, faixa, statusOf?.status, column.block, top);
+  }
   const panelTop = geometry.panelTop - column.rise;
   const logo = lockup(context, geometry, ink("destaque"));
   const panelId = `${context.idPrefix}.painel`;
@@ -23716,6 +23784,80 @@ function lockup(context, geometry, color2) {
     align: "center"
   });
 }
+function takeStatus(items) {
+  const [first, ...rest] = items;
+  if (first === void 0 || first.kind !== "line") return { items, status: void 0 };
+  const before = first.parts.filter((part) => part.position === "before");
+  if (before.length === 0) return { items, status: void 0 };
+  const kept = first.parts.filter((part) => part.position !== "before");
+  const status = before.flatMap((part, index) => {
+    if (index === 0) return [...part.words];
+    const start = part.words[0]?.range.start ?? 0;
+    return [{ kind: "text", value: " ", range: { start, end: start } }, ...part.words];
+  });
+  const line = kept.length === 0 ? [] : [{ ...first, parts: kept }];
+  return { items: [...line, ...rest], status };
+}
+function faixaFrame(context, ink, geometry, faixa, status, column, top) {
+  const width = context.size.w - 2 * faixa.margin;
+  const photoSize = { w: width, h: faixa.photoBottom - faixa.photoTop };
+  const frameId = `${context.idPrefix}.moldura`;
+  const value = context.slots["imagem"]?.value;
+  const picture = value?.kind === "image" ? image({
+    name: "imagem",
+    asset: value.asset,
+    size: photoSize,
+    fit: "cover",
+    mask: { nodeId: frameId, mode: "alpha" },
+    transform: { x: faixa.margin, y: faixa.photoTop }
+  }) : rect({
+    name: "imagem",
+    size: photoSize,
+    radius: faixa.radius,
+    fill: solid(NO_PHOTO),
+    transform: { x: faixa.margin, y: faixa.photoTop }
+  });
+  const stripHeight = faixa.stripBottom - faixa.photoBottom;
+  const words = status === void 0 ? void 0 : grownTextBlock(
+    upper(status),
+    width,
+    0,
+    styleOf(faixa.status.size, LIGHT, ink("texto-faixa"), ink),
+    context.measure,
+    { name: "status", align: "center", lineHeight: LINE_HEIGHT, overflow: "grow" }
+  );
+  const logo = lockup(context, geometry, ink("destaque"));
+  return frame({
+    format: context.format,
+    size: context.size,
+    idPrefix: context.idPrefix,
+    background: solid(ink("fundo")),
+    children: [
+      rect({
+        name: "faixa",
+        size: { w: width, h: faixa.stripBottom - faixa.photoTop },
+        radius: faixa.radius,
+        fill: solid(ink("destaque")),
+        transform: { x: faixa.margin, y: faixa.photoTop }
+      }),
+      // The photograph's own shape, drawn under it, is what masks it: an image has no radius.
+      ...value?.kind === "image" ? [
+        rect({
+          id: frameId,
+          name: "moldura",
+          size: photoSize,
+          radius: faixa.radius,
+          fill: solid(ink("destaque")),
+          transform: { x: faixa.margin, y: faixa.photoTop }
+        })
+      ] : [],
+      picture,
+      ...words === void 0 ? [] : [at(faixa.margin, faixa.photoBottom + (stripHeight - words.height) / 2, words)],
+      at(TEXT_MARGIN, top, column),
+      at((context.size.w - logo.width) / 2, geometry.logo.top, logo)
+    ]
+  });
+}
 function photo(context, geometry) {
   const size = { w: context.size.w, h: geometry.panelTop + geometry.panelRadius };
   const value = context.slots["imagem"]?.value;
@@ -23741,7 +23883,12 @@ function head(context, ink, geometry, items, room, scale, headShare) {
   );
   const fill = mainLineScale(
     { width: room.width, height: Infinity },
-    { items, look: reference, measure: context.measure, parameters: { maxScale: Infinity } }
+    {
+      items,
+      look: reference,
+      measure: context.measure,
+      parameters: { maxScale: geometry.nameMaxScale ?? Infinity }
+    }
   );
   const fitted2 = mainLineScale(
     { width: room.width, height: room.height * headShare },
@@ -23749,7 +23896,8 @@ function head(context, ink, geometry, items, room, scale, headShare) {
       items,
       look: reference,
       measure: context.measure,
-      heightAt: (ratio) => stackAt(ratio).height
+      heightAt: (ratio) => stackAt(ratio).height,
+      ...geometry.nameMaxScale === void 0 ? {} : { parameters: { maxScale: geometry.nameMaxScale } }
     }
   );
   const drawn = stackAt(Math.min(fitted2 * scale, Math.max(fill, fitted2)));
@@ -23857,14 +24005,21 @@ function offer(context, ink, geometry, items, scale, padding) {
   return card(segments, {
     name: "cartao",
     width: card2.w,
-    radius: CARD_RADIUS,
+    radius: geometry.cardRadius,
     stroke: { paint: solid(ink("destaque")), width: 2, align: "inside" },
     band: {
       name: "faixa",
       fill: solid(ink("destaque")),
-      effects: [
-        { kind: "shadow", x: 0, y: 8, blur: 32, spread: 0, color: { r: 0, g: 0, b: 0, a: 0.35 } }
-      ]
+      effects: geometry.bandShadow ? [
+        {
+          kind: "shadow",
+          x: 0,
+          y: 8,
+          blur: 32,
+          spread: 0,
+          color: { r: 0, g: 0, b: 0, a: 0.35 }
+        }
+      ] : []
     }
   });
 }
