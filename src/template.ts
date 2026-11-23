@@ -817,13 +817,18 @@ function faixaFrame(
     idPrefix: context.idPrefix,
     background: solid(ink('fundo')),
     children: [
-      rect({
-        name: 'faixa',
-        size: { w: width, h: faixa.stripBottom - faixa.photoTop },
-        radius: faixa.radius,
-        fill: solid(ink('destaque')),
-        transform: { x: faixa.margin, y: faixa.photoTop },
-      }),
+      // The strip only holds a status: with none, the photograph stands alone, as on PM SC.
+      ...(words === undefined
+        ? []
+        : [
+            rect({
+              name: 'faixa',
+              size: { w: width, h: faixa.stripBottom - faixa.photoTop },
+              radius: faixa.radius,
+              fill: solid(ink('destaque')),
+              transform: { x: faixa.margin, y: faixa.photoTop },
+            }),
+          ]),
       // The photograph's own shape, drawn under it, is what masks it: an image has no radius.
       ...(value?.kind === 'image'
         ? [
@@ -1178,7 +1183,15 @@ function impacto(
   const unit =
     unitParts.length === 0
       ? undefined
-      : stack({ name: 'impacto-unidade', items: unitParts, gap: shape.unitGap * scale });
+      : stack({
+          name: 'impacto-unidade',
+          items: unitParts,
+          // As the reference sets them: the `%` from the figure's top, the unit down to its foot.
+          gap: Math.max(
+            shape.unitGap * scale,
+            figure.height - unitParts.reduce((total, part) => total + part.height, 0),
+          ),
+        });
   const after = line.parts.filter((part) => part.position === 'after');
   const side =
     after.length === 0

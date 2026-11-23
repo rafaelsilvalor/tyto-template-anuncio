@@ -116,7 +116,7 @@ the head's photograph and a teacher cut out with no background.
 the photograph framed with rounded corners over a strip in `destaque`, the column below on the
 plain ground, the card with square corners and no shadow. The strip holds the parts written
 before the exam's name in the title's first line (`Edital publicado | # Detran SP`), in light
-capitals; a title with nothing before the name draws an empty strip. The name keeps its
+capitals; a title with nothing before the name draws no strip, the photograph alone (PM SC). The name keeps its
 reference size and only shrinks; the kit's pattern is not drawn (the reference has none). Write
 `cabeca: faixa` in the frontmatter, or reach it through a `faixa-cartao` configuration.
 

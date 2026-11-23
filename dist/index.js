@@ -23864,13 +23864,16 @@ function faixaFrame(context, ink, geometry, faixa, status, column, top) {
     idPrefix: context.idPrefix,
     background: solid(ink("fundo")),
     children: [
-      rect({
-        name: "faixa",
-        size: { w: width, h: faixa.stripBottom - faixa.photoTop },
-        radius: faixa.radius,
-        fill: solid(ink("destaque")),
-        transform: { x: faixa.margin, y: faixa.photoTop }
-      }),
+      // The strip only holds a status: with none, the photograph stands alone, as on PM SC.
+      ...words === void 0 ? [] : [
+        rect({
+          name: "faixa",
+          size: { w: width, h: faixa.stripBottom - faixa.photoTop },
+          radius: faixa.radius,
+          fill: solid(ink("destaque")),
+          transform: { x: faixa.margin, y: faixa.photoTop }
+        })
+      ],
       // The photograph's own shape, drawn under it, is what masks it: an image has no radius.
       ...value?.kind === "image" ? [
         rect({
@@ -24097,7 +24100,15 @@ function impacto(context, ink, geometry, items, width, scale) {
       )
     );
   }
-  const unit = unitParts.length === 0 ? void 0 : stack({ name: "impacto-unidade", items: unitParts, gap: shape.unitGap * scale });
+  const unit = unitParts.length === 0 ? void 0 : stack({
+    name: "impacto-unidade",
+    items: unitParts,
+    // As the reference sets them: the `%` from the figure's top, the unit down to its foot.
+    gap: Math.max(
+      shape.unitGap * scale,
+      figure.height - unitParts.reduce((total, part) => total + part.height, 0)
+    )
+  });
   const after = line.parts.filter((part) => part.position === "after");
   const side = after.length === 0 ? void 0 : piece(
     "impacto-lado",
