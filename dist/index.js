@@ -23418,7 +23418,7 @@ var GRID = {
   foot: { capTop: 1084, size: 33.6 },
   proof: { capTop: 1171, size: 33.3 },
   logo: { top: 1245, height: 62 },
-  wordmark: { height: 49, gap: 13 }
+  wordmark: { height: 49.5, gap: 13 }
 };
 var STORY = {
   panelTop: 745,
@@ -23439,7 +23439,7 @@ var STORY = {
   foot: { capTop: 1495, size: 36.8 },
   proof: { capTop: 1590, size: 36.5 },
   logo: { top: 1687, height: 71 },
-  wordmark: { height: 56, gap: 16 }
+  wordmark: { height: 57, gap: 16 }
 };
 var PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 };
 function geometryOf(size) {

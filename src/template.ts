@@ -200,7 +200,7 @@ export const GRID: Geometry = {
   foot: { capTop: 1084, size: 33.6 },
   proof: { capTop: 1171, size: 33.3 },
   logo: { top: 1245, height: 62 },
-  wordmark: { height: 49, gap: 13 },
+  wordmark: { height: 49.5, gap: 13 },
 };
 
 /** The story, board `1920_v1` of the reference: status to name 32 px, the lines 65 and 30. */
@@ -223,7 +223,7 @@ export const STORY: Geometry = {
   foot: { capTop: 1495, size: 36.8 },
   proof: { capTop: 1590, size: 36.5 },
   logo: { top: 1687, height: 71 },
-  wordmark: { height: 56, gap: 16 },
+  wordmark: { height: 57, gap: 16 },
 };
 
 /**
