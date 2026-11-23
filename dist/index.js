@@ -22298,6 +22298,10 @@ function runsOf(text2, base2, options = {}) {
   append(runs, text2, base2, options);
   return runs;
 }
+function numberValue(context, name, fallback) {
+  const value = context.values?.[name];
+  return typeof value === "number" ? value : fallback;
+}
 function colorValue(context, name, fallback) {
   const value = context.values?.[name];
   return typeof value === "string" ? value : fallback;
@@ -22425,7 +22429,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22462,7 +22466,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.19.1/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.20.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function sidesOf(padding) {
   if (typeof padding === "number") {
     return { top: padding, right: padding, bottom: padding, left: padding };
@@ -22753,25 +22757,31 @@ var DIVIDER = "---";
 function levelsOf(text2, options = {}) {
   const byPosition = options.readByPosition ?? true;
   const items = [];
-  for (const line of blockLines(text2)) {
+  let pendingParagraph = false;
+  for (const { inlines: line, paragraph } of blockLines(text2)) {
+    pendingParagraph ||= paragraph;
     const written = plain(line).trim();
     if (written === "") continue;
+    const opens = pendingParagraph && items.length > 0 ? { paragraph: true } : {};
     if (written === DIVIDER) {
-      items.push({ kind: "divider" });
+      items.push({ kind: "divider", ...opens });
+      pendingParagraph = false;
       continue;
     }
     const parts = fields(line).map(tidied).filter((part) => plain(part).trim() !== "").map(markOf);
     if (parts.length === 0) continue;
     const first = byPosition && !items.some((item) => item.kind === "line");
-    items.push({ kind: "line", parts: ranked(parts, first) });
+    items.push({ kind: "line", parts: ranked(parts, first), ...opens });
+    pendingParagraph = false;
   }
   return items;
 }
 function blockLines(text2) {
-  const result = [[]];
+  const result = [{ inlines: [], paragraph: false }];
   for (const inline of text2) {
-    if (inline.kind === "break" && inline.typed !== true) result.push([]);
-    else result[result.length - 1].push(inline);
+    if (inline.kind === "break" && inline.typed !== true) {
+      result.push({ inlines: [], paragraph: inline.paragraph === true });
+    } else result[result.length - 1].inlines.push(inline);
   }
   return result;
 }
@@ -23277,7 +23287,7 @@ function heightOf(segment) {
   return Math.max(segment.minHeight ?? 0, segment.content.height);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-KTMH3XT2.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-KTMH3XT2.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -23364,7 +23374,7 @@ function drawPattern(kit, options) {
   );
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -23493,6 +23503,7 @@ var GRID = {
   partGap: 29,
   nameGap: 35.6,
   lineGap: 15.5,
+  paragraphGap: 35.6,
   card: { x: 142, y: 872, w: 796, h: 266 },
   band: { y: 948, h: 117 },
   title: { capTop: 891, size: 50 },
@@ -23514,6 +23525,7 @@ var STORY = {
   partGap: 32,
   nameGap: 65,
   lineGap: 30,
+  paragraphGap: 65,
   card: { x: 105, y: 1263, w: 870, h: 290 },
   band: { y: 1347, h: 127 },
   title: { capTop: 1283, size: 54.7 },
@@ -23524,6 +23536,14 @@ var STORY = {
   wordmark: { height: 57, gap: 16 }
 };
 var PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 };
+var SPACING_DEFAULTS = { respiro: 1, "espaco-partes": 1 };
+function spaced(context, geometry) {
+  return {
+    ...geometry,
+    partGap: geometry.partGap * numberValue(context, "espaco-partes", SPACING_DEFAULTS["espaco-partes"]),
+    paragraphGap: geometry.paragraphGap * numberValue(context, "respiro", SPACING_DEFAULTS.respiro)
+  };
+}
 function geometryOf(size) {
   return size.h / size.w > 1.5 ? STORY : GRID;
 }
@@ -23592,7 +23612,7 @@ var ANUNCIO_PARAMETERS = {
 };
 var build = (context) => {
   const ink = inkOf(context);
-  const geometry = geometryOf(context.size);
+  const geometry = spaced(context, geometryOf(context.size));
   const values = parameterValues(ANUNCIO_PARAMETERS);
   const top = geometry.panelTop + geometry.panelPadding;
   const area = {
@@ -23713,7 +23733,7 @@ function head(context, ink, geometry, items, room, scale, headShare) {
       name: "titulo",
       look: (part) => lookOf(part, geometry, ink, ratio),
       gap: geometry.partGap * ratio,
-      lineGap: (above) => lineGapOf(above, geometry) * ratio,
+      lineGap: (above, below) => lineGapOf(above, below, geometry) * ratio,
       divider: () => dots(ink("texto"), ratio)
     },
     room.width,
@@ -23735,7 +23755,8 @@ function head(context, ink, geometry, items, room, scale, headShare) {
   const drawn = stackAt(Math.min(fitted2 * scale, Math.max(fill, fitted2)));
   return drawn.height > 0 ? drawn : void 0;
 }
-function lineGapOf(above, geometry) {
+function lineGapOf(above, below, geometry) {
+  if (below.paragraph === true) return geometry.paragraphGap;
   const holdsName = above.kind === "line" && above.parts.some((part) => part.level === 1);
   return holdsName ? geometry.nameGap : geometry.lineGap;
 }
@@ -23780,6 +23801,8 @@ function body(context, ink, geometry, words, room, scale) {
     measure: context.measure,
     divider: (_width, ratio) => dots(ink("texto"), ratio),
     parameters: { unmarkedRatio, partGap: geometry.partGap, lineGap: geometry.lineGap },
+    // A blank line in the body opens a paragraph's room; every other pair keeps the line gap.
+    lineGapBetween: (_above, below) => below.paragraph === true ? geometry.paragraphGap : geometry.lineGap,
     name: "corpo"
   });
 }

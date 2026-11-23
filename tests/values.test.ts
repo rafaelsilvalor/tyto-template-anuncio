@@ -4,7 +4,7 @@ import { defineTemplate, formatCatalogue, parseManifest } from '@tyto/core';
 import { compileTemplate } from '@tyto/template-kit/testing';
 import { describe, expect, it } from 'vitest';
 
-import { COLOR_DEFAULTS, CONTRAST_FLOOR, build } from '../src/template.js';
+import { COLOR_DEFAULTS, CONTRAST_FLOOR, SPACING_DEFAULTS, build } from '../src/template.js';
 
 import type { SuppliedValues } from '@tyto/core';
 
@@ -49,7 +49,7 @@ describe('declared values', () => {
     const defaults = Object.fromEntries(
       Object.entries(declared).map(([name, value]) => [name, value.default]),
     );
-    expect(defaults).toEqual(COLOR_DEFAULTS);
+    expect(defaults).toEqual({ ...COLOR_DEFAULTS, ...SPACING_DEFAULTS });
   });
 
   it('draws the same HTML with every default supplied as with no values at all', async () => {

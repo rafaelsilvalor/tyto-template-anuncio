@@ -112,6 +112,13 @@ formats: [grid, story]
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
 
+**0.10.0 lets a blank line open room** (TYTO-845, Tyto ADR 0205): in `::titulo` or `::corpo`,
+lines written together stay at the line gap, and a blank line between two lines opens the
+name's larger gap (35.6 px in the feed post, 65 in the story) before the next one. Two values
+scale the spacing from the frontmatter: `respiro: 2` doubles the room a blank line opens, and
+`espaco-partes: 1.5` widens the room between the parts of one line, such as the status above
+the exam's name. Both default to 1; a brief without blank lines draws what 0.9.0 drew.
+
 **0.9.0 paints a span with a colour mark, in up to three highlights.** `{cor:<name>}…{/}`
 (TYTO-846) paints a span in one of the declared colours, by
 its name: `## Ganhe até {cor:destaque}R$ 16 mil{/}` paints only the price. Colour only: the words
