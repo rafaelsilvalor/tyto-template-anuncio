@@ -5098,7 +5098,7 @@ function isRecursive(inst, stack2, resolve) {
     }
     return answer;
   };
-  const merge2 = (answer) => {
+  const merge3 = (answer) => {
     if (answer > result)
       result = answer;
   };
@@ -5107,7 +5107,7 @@ function isRecursive(inst, stack2, resolve) {
   switch (kind) {
     case "object": {
       const raw = rawShape(def);
-      merge2(raw ? shape(raw, true) : ASSUMED);
+      merge3(raw ? shape(raw, true) : ASSUMED);
       check2(def.catchall);
       break;
     }
@@ -5157,7 +5157,7 @@ function isRecursive(inst, stack2, resolve) {
     // `$ZodLazy` caches its inner on the def, so a resolved edge is followed exactly
     case "lazy": {
       const inner = def._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
-      merge2(inner ? isRecursive(inner, stack2, false) : ASSUMED);
+      merge3(inner ? isRecursive(inner, stack2, false) : ASSUMED);
       break;
     }
     // a leaf by choice: `parts` are regex fragments, not data positions
@@ -22598,6 +22598,52 @@ var LABEL_EXCEPTIONS = [
   { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
   { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
 ];
+var HIGHLIGHT_WEIGHT = 700;
+function mergeFamilies(base2, over) {
+  if (over === void 0) return base2;
+  const merged = { ...base2 };
+  for (const [key, family] of Object.entries(over)) {
+    const previous = merged[key];
+    const like = family.like ?? previous?.like;
+    merged[key] = {
+      ...like === void 0 ? {} : { like },
+      values: { ...previous?.values, ...family.values }
+    };
+  }
+  return merged;
+}
+function merge2(base2, over) {
+  const marks = mergeFamilies(base2.marks, over.marks);
+  return {
+    bold: { ...base2.bold, ...over.bold },
+    italic: { ...base2.italic, ...over.italic },
+    ...marks === void 0 ? {} : { marks }
+  };
+}
+function markStyle(spec, key, value) {
+  const family = spec.marks?.[key];
+  const named = family?.values[value];
+  if (family === void 0 || named === void 0) return void 0;
+  switch (family.like) {
+    case "bold":
+      return { weight: HIGHLIGHT_WEIGHT, ...spec.bold, ...named };
+    case "italic":
+      return { ...spec.italic, ...named, style: "italic" };
+    default:
+      return named;
+  }
+}
+function highlights(spec) {
+  return {
+    spec,
+    options: {
+      bold: { weight: HIGHLIGHT_WEIGHT, ...spec.bold },
+      italic: spec.italic ?? {},
+      mark: (key, value) => markStyle(spec, key, value)
+    },
+    with: (override) => highlights(merge2(spec, override))
+  };
+}
 function mark(shape, height, fill, name) {
   const scale = height / shape.box.h;
   return block(
@@ -23384,8 +23430,27 @@ var CONTRAST_PAIRS = [
   ["texto-faixa", "destaque"],
   ["destaque", "fundo"]
 ];
+function markedColors(value, found = /* @__PURE__ */ new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) markedColors(item, found);
+  } else if (typeof value === "object" && value !== null) {
+    const node2 = value;
+    if (node2.kind === "mark" && node2.key === COLOR_MARK && typeof node2.value === "string") {
+      found.add(node2.value);
+    }
+    for (const child of Object.values(value)) markedColors(child, found);
+  }
+  return found;
+}
 function reportContrast(context, ink) {
-  for (const [words, ground] of CONTRAST_PAIRS) {
+  const marked = markedColors(
+    ["titulo", "corpo", "nota"].map((name) => context.slots[name])
+  );
+  const pairs = [
+    ...CONTRAST_PAIRS,
+    ...[...marked].filter((name) => name in COLOR_DEFAULTS && name !== "destaque").map((name) => [name, "fundo"])
+  ];
+  for (const [words, ground] of pairs) {
     const foreground = ink(words);
     const background = ink(ground);
     const ratio = contrastRatio(foreground, background);
@@ -23393,6 +23458,16 @@ function reportContrast(context, ink) {
       context.report({ code: "W_TEMPLATE_LOW_CONTRAST", foreground, background, ratio });
     }
   }
+}
+function inkOf(context) {
+  return (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
+}
+var COLOR_MARK = "cor";
+function colorMarks(ink) {
+  const values = {};
+  for (const name of Object.keys(COLOR_DEFAULTS))
+    values[name] = { color: ink(name) };
+  return highlights({ marks: { [COLOR_MARK]: { like: "plain", values } } });
 }
 var FACE2 = { family: "CircularXX", source: "system" };
 var LIGHT = 300;
@@ -23509,7 +23584,7 @@ var ANUNCIO_PARAMETERS = {
   }
 };
 var build = (context) => {
-  const ink = (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
+  const ink = inkOf(context);
   const geometry = geometryOf(context.size);
   const values = parameterValues(ANUNCIO_PARAMETERS);
   const top = geometry.panelTop + geometry.panelPadding;
@@ -23669,7 +23744,7 @@ var LEVEL_STYLES = {
 function styled2(part, size, ink) {
   const style2 = LEVEL_STYLES[part.level];
   return {
-    style: styleOf(size, style2.weight, ink(style2.color)),
+    style: styleOf(size, style2.weight, ink(style2.color), ink),
     lineHeight: LINE_HEIGHT,
     ...style2.tracking === 0 ? {} : { letterSpacing: size * style2.tracking },
     ...style2.upper ? { transform: upper } : {}
@@ -23769,26 +23844,37 @@ function note(context, ink, geometry, words, room, scale) {
     words,
     room.width,
     0,
-    styleOf(geometry.proof.size * scale, LIGHT, ink("texto")),
+    styleOf(geometry.proof.size * scale, LIGHT, ink("texto"), ink),
     context.measure,
     { name: "nota", align: "center", lineHeight: LINE_HEIGHT, overflow: "grow" }
   );
 }
-function styleOf(size, weight, color2) {
-  return { font: FACE2, size, weight, color: color2 };
+function styleOf(size, weight, color2, ink) {
+  return { font: FACE2, size, weight, color: color2, highlights: colorMarks(ink) };
 }
 function fitted(context, name, words, setting) {
   const { weight, color: color2, inner } = setting;
-  const size = setting.shrink ? fitSize(words, setting.size, weight, color2, inner, context.measure) : setting.size;
-  return grownTextBlock(words, inner, 0, styleOf(size, weight, color2), context.measure, {
-    name,
-    align: "center",
-    lineHeight: LINE_HEIGHT,
-    overflow: "grow"
-  });
+  const size = setting.shrink ? fitSize(words, setting.size, weight, color2, inner, context) : setting.size;
+  return grownTextBlock(
+    words,
+    inner,
+    0,
+    styleOf(size, weight, color2, inkOf(context)),
+    context.measure,
+    {
+      name,
+      align: "center",
+      lineHeight: LINE_HEIGHT,
+      overflow: "grow"
+    }
+  );
 }
-function fitSize(words, size, weight, color2, width, measure) {
-  const natural = naturalWidth(words, styleOf(size, weight, color2), measure);
+function fitSize(words, size, weight, color2, width, context) {
+  const natural = naturalWidth(
+    words,
+    styleOf(size, weight, color2, inkOf(context)),
+    context.measure
+  );
   if (natural === void 0 || natural <= width) return size;
   return Math.max(size * FIT_FLOOR, size * width / natural);
 }

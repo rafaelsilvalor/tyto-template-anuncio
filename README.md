@@ -112,6 +112,12 @@ formats: [grid, story]
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
 
+**Unreleased: `{cor:<name>}…{/}` paints a span** (TYTO-846) in one of the declared colours, by
+its name: `## Ganhe até {cor:destaque}R$ 16 mil{/}` paints only the price. Colour only: the words
+keep their level's weight, and `**…**` makes them heavier. A name the template does not declare
+leaves the words in their level's colour. A marked colour on the panel is checked against
+`fundo` like the name is.
+
 **0.8.0 draws the kit's lockup and pattern:** the kit's wordmark beside its logo, both in
 `destaque`, at the reference's sizes (Tyto ADR 0066), and the kit's background pattern over the
 panel at 8%, cut to it, lines in `destaque` and dots in `texto` (Tyto ADR 0228). The lattice is

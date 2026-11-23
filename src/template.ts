@@ -44,6 +44,7 @@ import {
   card as drawCard,
   cardSegments,
   grownTextBlock,
+  highlights,
   inset,
   levelStack,
   levelsOf,
@@ -68,7 +69,7 @@ import type {
   LevelItem,
   LevelLook,
   LevelPart,
-  Measure,
+  Highlights,
   ParameterSchema,
   TextStyle,
 } from '@tyto/template-kit';
@@ -109,9 +110,36 @@ const CONTRAST_PAIRS: readonly (readonly [ColorName, ColorName])[] = [
   ['destaque', 'fundo'],
 ];
 
-/** One warning per pair under the floor; the colours stay as the brief chose them. */
+/** Every colour name a `{cor:…}` mark names anywhere in a value, the brief's or a nested one. */
+function markedColors(value: unknown, found: Set<string> = new Set()): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value) markedColors(item, found);
+  } else if (typeof value === 'object' && value !== null) {
+    const node = value as { kind?: unknown; key?: unknown; value?: unknown };
+    if (node.kind === 'mark' && node.key === COLOR_MARK && typeof node.value === 'string') {
+      found.add(node.value);
+    }
+    for (const child of Object.values(value)) markedColors(child, found);
+  }
+  return found;
+}
+
+/**
+ * One warning per pair under the floor; the colours stay as the brief chose them. A colour a
+ * `{cor:…}` mark paints on the panel (the head, the body, the note) is checked against `fundo`
+ * too; the offer's words sit on the card and the band, and are not.
+ */
 function reportContrast(context: TemplateContext, ink: Ink): void {
-  for (const [words, ground] of CONTRAST_PAIRS) {
+  const marked = markedColors(
+    (['titulo', 'corpo', 'nota'] as const).map((name) => context.slots[name]),
+  );
+  const pairs = [
+    ...CONTRAST_PAIRS,
+    ...[...marked]
+      .filter((name): name is ColorName => name in COLOR_DEFAULTS && name !== 'destaque')
+      .map((name) => [name, 'fundo'] as const),
+  ];
+  for (const [words, ground] of pairs) {
     const foreground = ink(words);
     const background = ink(ground);
     const ratio = contrastRatio(foreground, background);
@@ -122,6 +150,27 @@ function reportContrast(context: TemplateContext, ink: Ink): void {
   }
 }
 type Ink = (name: ColorName) => string;
+
+/** Each declared colour as the brief, its configuration or the default sets it (ADR 0153, 0226). */
+function inkOf(context: TemplateContext): Ink {
+  return (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
+}
+
+/** The mark family that paints a span: `{cor:destaque}R$ 16 mil{/}` (TYTO-846). */
+const COLOR_MARK = 'cor';
+
+/**
+ * What `{cor:<name>}…{/}` paints: each declared colour, by its name. **Colour only**: a level
+ * keeps its own weight, so a span inside a Black name stays Black and one inside a Light line
+ * stays Light; `**…**` around or inside it makes it heavier. A name the template does not
+ * declare leaves the words in their level's colour, as a mark nothing maps always has.
+ */
+function colorMarks(ink: Ink): Highlights {
+  const values: Record<string, { readonly color: string }> = {};
+  for (const name of Object.keys(COLOR_DEFAULTS) as ColorName[])
+    values[name] = { color: ink(name) };
+  return highlights({ marks: { [COLOR_MARK]: { like: 'plain', values } } });
+}
 
 const FACE = { family: 'CircularXX', source: 'system' } as const;
 const LIGHT = 300;
@@ -338,7 +387,7 @@ export const ANUNCIO_PARAMETERS = {
  * is left (TYTO-825).
  */
 export const build: TemplateBuild = (context: TemplateContext) => {
-  const ink: Ink = (name) => colorValue(context, name, COLOR_DEFAULTS[name]);
+  const ink = inkOf(context);
   const geometry = geometryOf(context.size);
   const values = parameterValues(ANUNCIO_PARAMETERS);
 
@@ -557,7 +606,7 @@ export const LEVEL_STYLES: Readonly<Record<Level, LevelStyle>> = {
 function styled(part: LevelPart, size: number, ink: Ink): LevelLook {
   const style = LEVEL_STYLES[part.level];
   return {
-    style: styleOf(size, style.weight, ink(style.color)),
+    style: styleOf(size, style.weight, ink(style.color), ink),
     lineHeight: LINE_HEIGHT,
     ...(style.tracking === 0 ? {} : { letterSpacing: size * style.tracking }),
     ...(style.upper ? { transform: upper } : {}),
@@ -709,7 +758,7 @@ function note(
     words,
     room.width,
     0,
-    styleOf(geometry.proof.size * scale, LIGHT, ink('texto')),
+    styleOf(geometry.proof.size * scale, LIGHT, ink('texto'), ink),
     context.measure,
     { name: 'nota', align: 'center', lineHeight: LINE_HEIGHT, overflow: 'grow' },
   );
@@ -717,8 +766,8 @@ function note(
 
 /* ------------------------------------------------------------------ placing words -- */
 
-function styleOf(size: number, weight: number, color: string): TextStyle {
-  return { font: FACE, size, weight, color };
+function styleOf(size: number, weight: number, color: string, ink: Ink): TextStyle {
+  return { font: FACE, size, weight, color, highlights: colorMarks(ink) };
 }
 
 interface Setting {
@@ -735,14 +784,21 @@ interface Setting {
 function fitted(context: TemplateContext, name: string, words: RichText, setting: Setting): Block {
   const { weight, color, inner } = setting;
   const size = setting.shrink
-    ? fitSize(words, setting.size, weight, color, inner, context.measure)
+    ? fitSize(words, setting.size, weight, color, inner, context)
     : setting.size;
-  return grownTextBlock(words, inner, 0, styleOf(size, weight, color), context.measure, {
-    name,
-    align: 'center',
-    lineHeight: LINE_HEIGHT,
-    overflow: 'grow',
-  });
+  return grownTextBlock(
+    words,
+    inner,
+    0,
+    styleOf(size, weight, color, inkOf(context)),
+    context.measure,
+    {
+      name,
+      align: 'center',
+      lineHeight: LINE_HEIGHT,
+      overflow: 'grow',
+    },
+  );
 }
 
 /** The size at which the words fit one line of `width`, never below the floor. */
@@ -752,9 +808,13 @@ function fitSize(
   weight: number,
   color: string,
   width: number,
-  measure: Measure,
+  context: TemplateContext,
 ): number {
-  const natural = naturalWidth(words, styleOf(size, weight, color), measure);
+  const natural = naturalWidth(
+    words,
+    styleOf(size, weight, color, inkOf(context)),
+    context.measure,
+  );
   if (natural === undefined || natural <= width) return size;
   return Math.max(size * FIT_FLOOR, (size * width) / natural);
 }
