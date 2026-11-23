@@ -23559,8 +23559,8 @@ var FAIXA_GRID = {
     stripBottom: 684,
     radius: 60,
     status: { size: 40 },
-    columnTop: 700,
-    columnBottom: 1330
+    columnTop: 715,
+    columnBottom: 1345
   }
 };
 var FAIXA_STORY = {
@@ -23583,8 +23583,8 @@ var FAIXA_STORY = {
     stripBottom: 934,
     radius: 60,
     status: { size: 40 },
-    columnTop: 950,
-    columnBottom: 1760
+    columnTop: 971,
+    columnBottom: 1781
   }
 };
 var PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 };

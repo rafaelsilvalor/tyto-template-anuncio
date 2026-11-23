@@ -353,8 +353,8 @@ export const FAIXA_GRID: Geometry & { readonly faixa: FaixaShape } = {
     stripBottom: 684,
     radius: 60,
     status: { size: 40 },
-    columnTop: 700,
-    columnBottom: 1330,
+    columnTop: 715,
+    columnBottom: 1345,
   },
 };
 
@@ -379,8 +379,8 @@ export const FAIXA_STORY: Geometry & { readonly faixa: FaixaShape } = {
     stripBottom: 934,
     radius: 60,
     status: { size: 40 },
-    columnTop: 950,
-    columnBottom: 1760,
+    columnTop: 971,
+    columnBottom: 1781,
   },
 };
 
