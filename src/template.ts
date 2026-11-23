@@ -33,7 +33,15 @@
  * value (Tyto ADR 0153); the pattern takes `destaque` and `texto`, so it follows the brief.
  */
 
-import { colorValue, contrastRatio, frame, image, rect, solid } from '@tyto/core/template';
+import {
+  colorValue,
+  contrastRatio,
+  frame,
+  image,
+  numberValue,
+  rect,
+  solid,
+} from '@tyto/core/template';
 import { drawBrandMark, drawLogo, drawPattern, oneInk } from '@tyto/house-style';
 import {
   at,
@@ -220,6 +228,11 @@ interface Geometry {
   readonly nameGap: number;
   /** Between any other two lines, or a line and the divider, box to box. */
   readonly lineGap: number;
+  /**
+   * Between two lines a blank line separates in the brief (ADR 0205, TYTO-845): the name's own
+   * gap, the larger room the reference already opens, so a paragraph reads as a new group.
+   */
+  readonly paragraphGap: number;
   /** The card's box; its band spans the card's width. */
   readonly card: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
   readonly band: { readonly y: number; readonly h: number };
@@ -249,6 +262,7 @@ export const GRID: Geometry = {
   partGap: 29,
   nameGap: 35.6,
   lineGap: 15.5,
+  paragraphGap: 35.6,
   card: { x: 142, y: 872, w: 796, h: 266 },
   band: { y: 948, h: 117 },
   title: { capTop: 891, size: 50 },
@@ -272,6 +286,7 @@ export const STORY: Geometry = {
   partGap: 32,
   nameGap: 65,
   lineGap: 30,
+  paragraphGap: 65,
   card: { x: 105, y: 1263, w: 870, h: 290 },
   band: { y: 1347, h: 127 },
   title: { capTop: 1283, size: 54.7 },
@@ -289,6 +304,22 @@ export const STORY: Geometry = {
  * lattice stays put when a long head raises the panel.
  */
 export const PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 } as const;
+
+/**
+ * The format's geometry with the brief's spacing laid over it (TYTO-845): `respiro` multiplies
+ * the room a blank line opens and `espaco-partes` the room between two parts of one line, the
+ * status above the exam's name among them. Both default to 1, which draws the reference.
+ */
+export const SPACING_DEFAULTS = { respiro: 1, 'espaco-partes': 1 } as const;
+
+function spaced(context: TemplateContext, geometry: Geometry): Geometry {
+  return {
+    ...geometry,
+    partGap:
+      geometry.partGap * numberValue(context, 'espaco-partes', SPACING_DEFAULTS['espaco-partes']),
+    paragraphGap: geometry.paragraphGap * numberValue(context, 'respiro', SPACING_DEFAULTS.respiro),
+  };
+}
 
 /** A frame taller than one and a half times its width is laid out as the story. */
 export function geometryOf(size: { readonly w: number; readonly h: number }): Geometry {
@@ -395,7 +426,7 @@ export const ANUNCIO_PARAMETERS = {
  */
 export const build: TemplateBuild = (context: TemplateContext) => {
   const ink = inkOf(context);
-  const geometry = geometryOf(context.size);
+  const geometry = spaced(context, geometryOf(context.size));
   const values = parameterValues(ANUNCIO_PARAMETERS);
 
   const top = geometry.panelTop + geometry.panelPadding;
@@ -553,7 +584,7 @@ function head(
         name: 'titulo',
         look: (part) => lookOf(part, geometry, ink, ratio),
         gap: geometry.partGap * ratio,
-        lineGap: (above) => lineGapOf(above, geometry) * ratio,
+        lineGap: (above, below) => lineGapOf(above, below, geometry) * ratio,
         divider: () => dots(ink('texto'), ratio),
       },
       room.width,
@@ -576,8 +607,12 @@ function head(
   return drawn.height > 0 ? drawn : undefined;
 }
 
-/** The room under a line: the name's own, larger, or the one every other pair shares. */
-export function lineGapOf(above: LevelItem, geometry: Geometry): number {
+/**
+ * The room under a line: a paragraph's when a blank line opens the next one, else the name's
+ * own, larger, or the one every other pair shares.
+ */
+export function lineGapOf(above: LevelItem, below: LevelItem, geometry: Geometry): number {
+  if (below.paragraph === true) return geometry.paragraphGap;
   const holdsName = above.kind === 'line' && above.parts.some((part) => part.level === 1);
   return holdsName ? geometry.nameGap : geometry.lineGap;
 }
@@ -663,6 +698,9 @@ function body(
     measure: context.measure,
     divider: (_width, ratio) => dots(ink('texto'), ratio),
     parameters: { unmarkedRatio, partGap: geometry.partGap, lineGap: geometry.lineGap },
+    // A blank line in the body opens a paragraph's room; every other pair keeps the line gap.
+    lineGapBetween: (_above, below) =>
+      below.paragraph === true ? geometry.paragraphGap : geometry.lineGap,
     name: 'corpo',
   });
 }

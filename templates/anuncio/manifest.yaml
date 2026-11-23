@@ -1,5 +1,5 @@
 name: anuncio
-version: 0.9.0
+version: 0.10.0
 description: A remarketing ad for one exam — its facts at the head and an offer below, one artwork per version, in a feed post and a story.
 # Every face the template sets is declared: CircularXX is licensed, so it crosses only under the
 # manifest's `font:CircularXX`, approved at install.
@@ -76,3 +76,9 @@ values:
   texto: { type: color, default: '#4d4d4d' }
   # The words on the band.
   texto-faixa: { type: color, default: '#eceaea' }
+  # The room a blank line opens between two lines of a block, as a multiple of the format's own
+  # (the name's gap: 35.6 px in the feed post, 65 in the story). TYTO-845.
+  respiro: { type: number, default: 1, min: 0, max: 4 }
+  # The room between two parts of one line (the status and the exam's name), as a multiple of the
+  # format's own (29 px in the feed post, 32 in the story). TYTO-845.
+  espaco-partes: { type: number, default: 1, min: 0, max: 4 }
