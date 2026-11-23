@@ -83,6 +83,13 @@ import type {
 export const COLOR_DEFAULTS = {
   /** The exam's name, the accent levels, the card's outline and its band. */
   destaque: '#1363d0',
+  /**
+   * A second and a third highlight, painted only where a `{cor:…}` mark names them (TYTO-847):
+   * the name in `destaque` and the price in `destaque-2`. A declared colour needs a constant
+   * default, so theirs is `destaque`'s, and a brief that marks them sets them.
+   */
+  'destaque-2': '#1363d0',
+  'destaque-3': '#1363d0',
   /** The panel under the words. */
   fundo: '#f7f4f4',
   /** Every word on the panel. */
