@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.58.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-6A2A6GIW.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.59.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-NUEMZ7BR.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -22323,7 +22323,7 @@ function contrastRatio(a, b) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.58.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.59.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -22425,7 +22425,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.13/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22462,7 +22462,7 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.19.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.19.1/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
 function sidesOf(padding) {
   if (typeof padding === "number") {
     return { top: padding, right: padding, bottom: padding, left: padding };
@@ -23231,7 +23231,7 @@ function heightOf(segment) {
   return Math.max(segment.minHeight ?? 0, segment.content.height);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.13/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-EIGOHDOF.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-KTMH3XT2.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -23266,8 +23266,59 @@ function drawBrandMark(shape, height, inks, name) {
 function drawLogo(kit, height, inks) {
   return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
 }
+function firstOffset(phase, step) {
+  return phase - Math.ceil(phase / step) * step;
+}
+function drawPattern(kit, options) {
+  const pattern = kit.pattern;
+  if (pattern === void 0) return void 0;
+  const scale = options.tileWidth / pattern.tile.w;
+  const tileHeight = pattern.tile.h * scale;
+  const left = firstOffset(options.phase?.x ?? 0, options.tileWidth);
+  const top = firstOffset(options.phase?.y ?? 0, tileHeight);
+  const columns = Math.ceil((options.size.w - left) / options.tileWidth);
+  const rows = Math.ceil((options.size.h - top) / tileHeight);
+  const tiles = [];
+  for (let row2 = 0; row2 < rows; row2 += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      tiles.push(
+        group({
+          name: `pattern-${String(row2)}-${String(column)}`,
+          transform: { x: left + column * options.tileWidth, y: top + row2 * tileHeight },
+          children: pattern.layers.map((layer, index) => {
+            const ink = solid(options.inks[layer.tone]);
+            return vector({
+              name: `pattern-${layer.tone}-${String(index)}`,
+              geometry: {
+                kind: "path",
+                d: layer.d,
+                fillRule: "fillRule" in layer ? layer.fillRule : "nonzero"
+              },
+              size: pattern.tile,
+              ..."stroke" in layer ? { stroke: { paint: ink, width: layer.stroke, align: "center" } } : { fill: ink },
+              transform: { scaleX: scale, scaleY: scale },
+              // On each vector, not on the group: a group has no box in the IR, and
+              // export-html masks an element only inside its own box, so a masked group
+              // draws nothing (measured 2026-11-22, TYTO-842). A vector's box is its size.
+              ...options.mask !== void 0 ? { mask: options.mask } : {}
+            });
+          })
+        })
+      );
+    }
+  }
+  return block(
+    options.size.w,
+    options.size.h,
+    group({
+      name: "pattern",
+      opacity: options.opacity,
+      children: tiles
+    })
+  );
+}
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.6.13/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.0/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
@@ -23366,7 +23417,8 @@ var GRID = {
   bandText: { capTop: 983, size: 60.3 },
   foot: { capTop: 1084, size: 33.6 },
   proof: { capTop: 1171, size: 33.3 },
-  logo: { top: 1245, height: 62 }
+  logo: { top: 1245, height: 62 },
+  wordmark: { height: 49.5, gap: 13 }
 };
 var STORY = {
   panelTop: 745,
@@ -23386,8 +23438,10 @@ var STORY = {
   bandText: { capTop: 1384, size: 66 },
   foot: { capTop: 1495, size: 36.8 },
   proof: { capTop: 1590, size: 36.5 },
-  logo: { top: 1687, height: 71 }
+  logo: { top: 1687, height: 71 },
+  wordmark: { height: 57, gap: 16 }
 };
+var PATTERN = { tileWidth: 336, corner: { x: 40, y: 217 }, opacity: 0.08 };
 function geometryOf(size) {
   return size.h / size.w > 1.5 ? STORY : GRID;
 }
@@ -23514,7 +23568,17 @@ var build = (context) => {
   reportOverflow(context.report, column.overflow, 0);
   reportContrast(context, ink);
   const panelTop = geometry.panelTop - column.rise;
-  const logo = drawLogo(context.brand, geometry.logo.height, oneInk(ink("destaque")));
+  const logo = lockup(context, geometry, ink("destaque"));
+  const panelId = `${context.idPrefix}.painel`;
+  const panelSize = { w: context.size.w, h: context.size.h - panelTop };
+  const pattern = drawPattern(context.brand, {
+    size: panelSize,
+    tileWidth: PATTERN.tileWidth,
+    inks: { primary: ink("destaque"), secondary: ink("texto") },
+    opacity: PATTERN.opacity,
+    mask: { nodeId: panelId, mode: "alpha" },
+    phase: { x: PATTERN.corner.x, y: PATTERN.corner.y - panelTop }
+  });
   return frame({
     format: context.format,
     size: context.size,
@@ -23523,17 +23587,33 @@ var build = (context) => {
     children: [
       photo(context, geometry),
       rect({
+        // Named only when a pattern is masked by it: an explicit id changes the HTML's ids, and
+        // a render without a kit keeps its bytes.
+        ...pattern === void 0 ? {} : { id: panelId },
         name: "painel",
-        size: { w: context.size.w, h: context.size.h - panelTop },
+        size: panelSize,
         radius: [geometry.panelRadius, geometry.panelRadius, 0, 0],
         fill: solid(ink("fundo")),
         transform: { y: panelTop }
       }),
+      ...pattern === void 0 ? [] : [at(0, panelTop, pattern)],
       at(TEXT_MARGIN, top - column.rise, column.block),
       at((context.size.w - logo.width) / 2, geometry.logo.top, logo)
     ]
   });
 };
+function lockup(context, geometry, color2) {
+  const inks = oneInk(color2);
+  const logo = drawLogo(context.brand, geometry.logo.height, inks);
+  const wordmark = context.brand.wordmark;
+  if (wordmark === void 0) return logo;
+  return row({
+    name: "assinatura",
+    items: [logo, drawBrandMark(wordmark, geometry.wordmark.height, inks, "wordmark")],
+    gap: geometry.wordmark.gap,
+    align: "center"
+  });
+}
 function photo(context, geometry) {
   const size = { w: context.size.w, h: geometry.panelTop + geometry.panelRadius };
   const value = context.slots["imagem"]?.value;
