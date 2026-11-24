@@ -63,8 +63,8 @@ import {
   plain,
   reportOverflow,
   row,
+  scalesOf,
   stack,
-  weightOf,
 } from '@tyto/template-kit';
 
 import type { Inline, RichText, TemplateBuild, TemplateContext } from '@tyto/core';
@@ -648,33 +648,36 @@ export const build: TemplateBuild = (context: TemplateContext) => {
           ? statusOf.items
           : read;
       return {
-        scale: weightOf(slot),
-        build: (room, scale) => head(context, ink, geometry, items, room, scale, values.headShare),
+        ...scalesOf(slot),
+        build: (room, scale, spacing = scale) =>
+          head(context, ink, geometry, items, room, scale, spacing, values.headShare),
       };
     },
     corpo: (slot) => {
       const words = textOf(slot);
       return {
-        scale: weightOf(slot),
-        build: (room, scale) => body(context, ink, geometry, words, room, scale),
+        ...scalesOf(slot),
+        build: (room, scale, spacing = scale) =>
+          body(context, ink, geometry, words, room, scale, spacing),
       };
     },
     apelo: (slot) => {
       const items = levelsOf(textOf(slot));
       return {
-        scale: weightOf(slot),
+        ...scalesOf(slot),
         // An impacto whose main part is no figure falls back to the card, so no brief breaks.
-        build: (room, scale) =>
+        build: (room, scale, spacing = scale) =>
           (offerLayout(context) === 'impacto'
-            ? impacto(context, ink, geometry, items, room.width, scale)
+            ? impacto(context, ink, geometry, items, room.width, scale, spacing)
             : undefined) ??
-          offer(context, ink, geometry, items, scale, values.segmentPadding * scale),
+          offer(context, ink, geometry, items, scale, spacing, values.segmentPadding * spacing),
       };
     },
     nota: (slot) => {
       const words = textOf(slot);
+      // The note is one text with no space inside it: `espaco` has nothing to scale there.
       return {
-        scale: weightOf(slot),
+        ...scalesOf(slot),
         build: (room, scale) => note(context, ink, geometry, words, room, scale),
       };
     },
@@ -683,7 +686,13 @@ export const build: TemplateBuild = (context: TemplateContext) => {
   const fallback: ColumnEntry[] = (['titulo', 'corpo', 'apelo', 'nota'] as const).map((name) => {
     const slot = context.slots[name];
     const built = slot === undefined ? undefined : kinds[name]?.(slot);
-    return { name, build: built?.build ?? (() => undefined), scale: built?.scale ?? 1 };
+    return {
+      name,
+      build: built?.build ?? (() => undefined),
+      scale: built?.scale ?? 1,
+      ...(built?.spacing === undefined ? {} : { spacing: built.spacing }),
+      ...(built?.distance === undefined ? {} : { distance: built.distance }),
+    };
   });
   const column = blockColumn(area, {
     name: 'coluna',
@@ -773,9 +782,14 @@ function takeStatus(items: readonly LevelItem[]): {
 } {
   const [first, ...rest] = items;
   if (first === undefined || first.kind !== 'line') return { items, status: undefined };
-  const before = first.parts.filter((part) => part.position === 'before');
+  // A piece joined to the name by a typed break is part of the name's `|` part, so it stays
+  // with the name: the strip takes only the parts before that one (TYTO-855, Tyto ADR 0229).
+  const main = first.parts.findIndex((part) => part.position === 'main');
+  let nameStart = main < 0 ? first.parts.length : main;
+  while (nameStart > 0 && first.parts[nameStart]?.joined === true) nameStart -= 1;
+  const before = first.parts.slice(0, nameStart);
   if (before.length === 0) return { items, status: undefined };
-  const kept = first.parts.filter((part) => part.position !== 'before');
+  const kept = first.parts.slice(nameStart);
   const status = before.flatMap((part, index): Inline[] => {
     if (index === 0) return [...part.words];
     const start = part.words[0]?.range.start ?? 0;
@@ -902,18 +916,20 @@ function head(
   items: readonly LevelItem[],
   room: Area,
   scale: number,
+  spacing: number,
   headShare: number,
 ): Block | undefined {
   if (items.length === 0) return undefined;
   const reference = (part: LevelPart): LevelLook => lookOf(part, geometry, ink, 1);
-  const stackAt = (ratio: number): Block =>
+  // `gapRatio` scales the spaces inside the head, `ratio` its letters and its divider.
+  const stackAt = (ratio: number, gapRatio: number = ratio): Block =>
     levelStack(
       items,
       {
         name: 'titulo',
         look: (part) => lookOf(part, geometry, ink, ratio),
-        gap: geometry.partGap * ratio,
-        lineGap: (above, below) => lineGapOf(above, below, geometry) * ratio,
+        gap: geometry.partGap * gapRatio,
+        lineGap: (above, below) => lineGapOf(above, below, geometry) * gapRatio,
         divider: () => dots(ink('texto'), ratio),
       },
       room.width,
@@ -940,7 +956,10 @@ function head(
         : { parameters: { maxScale: geometry.nameMaxScale } }),
     },
   );
-  const drawn = stackAt(Math.min(fitted * scale, Math.max(fill, fitted)));
+  // The letters grow by `tamanho` (or `peso`) up to the width the main line fills; the spaces
+  // keep the proportion `espaco` asks of the letters, so with no `espaco` they move together.
+  const letters = Math.min(fitted * scale, Math.max(fill, fitted));
+  const drawn = stackAt(letters, spacing === scale ? letters : (letters * spacing) / scale);
   return drawn.height > 0 ? drawn : undefined;
 }
 
@@ -1013,6 +1032,7 @@ function body(
   words: RichText,
   room: Area,
   scale: number,
+  spacing: number,
 ): Block | undefined {
   const name = geometry.name.size;
   const size = (level: Exclude<Level, 0>): number => name * LEVEL_STYLES[level].ratio;
@@ -1028,18 +1048,23 @@ function body(
     ),
   );
   const unmarkedRatio = Math.min(1, LEVEL_STYLES[0].ratio / smallest);
-  return bodyBlock(room, scale, {
-    words,
-    sizes: { 1: size(1), 2: size(2), 3: size(3), 4: size(4), 5: size(5), 6: size(6) },
-    look: (part, drawn) => styled(part, drawn, ink),
-    measure: context.measure,
-    divider: (_width, ratio) => dots(ink('texto'), ratio),
-    parameters: { unmarkedRatio, partGap: geometry.partGap, lineGap: geometry.lineGap },
-    // A blank line in the body opens a paragraph's room; every other pair keeps the line gap.
-    lineGapBetween: (_above, below) =>
-      below.paragraph === true ? geometry.paragraphGap : geometry.lineGap,
-    name: 'corpo',
-  });
+  return bodyBlock(
+    room,
+    scale,
+    {
+      words,
+      sizes: { 1: size(1), 2: size(2), 3: size(3), 4: size(4), 5: size(5), 6: size(6) },
+      look: (part, drawn) => styled(part, drawn, ink),
+      measure: context.measure,
+      divider: (_width, ratio) => dots(ink('texto'), ratio),
+      parameters: { unmarkedRatio, partGap: geometry.partGap, lineGap: geometry.lineGap },
+      // A blank line in the body opens a paragraph's room; every other pair keeps the line gap.
+      lineGapBetween: (_above, below) =>
+        below.paragraph === true ? geometry.paragraphGap : geometry.lineGap,
+      name: 'corpo',
+    },
+    spacing,
+  );
 }
 
 /** The divider: three dots, centred. */
@@ -1059,8 +1084,9 @@ function dots(color: string, ratio: number): Block {
 /**
  * The offer as a card shaped by `::apelo`'s parts: the main part is the band, the parts before
  * it the title, the parts after it the foot (later lines join the foot). Each segment keeps the
- * reference's height at the scale, its words centred in it; words that wrap grow their segment.
- * Band and title words shrink to one line before they wrap, down to 0.7. No `::apelo`, no card.
+ * reference's height at the spacing (`espaco`, else `peso`), its words at the scale, centred in
+ * it; words that wrap grow their segment. Band and title words shrink to one line before they
+ * wrap, down to 0.7. No `::apelo`, no card.
  */
 function offer(
   context: TemplateContext,
@@ -1068,6 +1094,7 @@ function offer(
   geometry: Geometry,
   items: readonly LevelItem[],
   scale: number,
+  spacing: number,
   padding: number,
 ): Block | undefined {
   const { card, band } = geometry;
@@ -1103,10 +1130,12 @@ function offer(
         });
     }
   };
+  // A segment's height is its words and the room around them; the room is the card's space, so
+  // it follows `espaco`. Words taller than it grow their segment, so nothing is cut.
   const segments = cardSegments(items, segmentOf, {
-    title: (band.y - card.y) * scale,
-    band: band.h * scale,
-    foot: (card.y + card.h - band.y - band.h) * scale,
+    title: (band.y - card.y) * spacing,
+    band: band.h * spacing,
+    foot: (card.y + card.h - band.y - band.h) * spacing,
   });
   if (segments.length === 0) return undefined;
   return drawCard(segments, {
@@ -1157,6 +1186,7 @@ function impacto(
   items: readonly LevelItem[],
   width: number,
   scale: number,
+  spacing: number,
 ): Block | undefined {
   const line = items.find((item) => item.kind === 'line');
   if (line === undefined || line.kind !== 'line') return undefined;
@@ -1212,7 +1242,7 @@ function impacto(
           items: unitParts,
           // As the reference sets them: the `%` from the figure's top, the unit down to its foot.
           gap: Math.max(
-            shape.unitGap * scale,
+            shape.unitGap * spacing,
             figure.height - unitParts.reduce((total, part) => total + part.height, 0),
           ),
         });
@@ -1231,22 +1261,22 @@ function impacto(
   const height = Math.max(figure.height, unit?.height ?? 0, side?.height ?? 0);
   const ruleWidth = shape.rule * scale;
   const items_: Block[] = [figure];
-  if (unit !== undefined) items_.push(space(shape.gaps.unit * scale), unit);
+  if (unit !== undefined) items_.push(space(shape.gaps.unit * spacing), unit);
   if (side !== undefined) {
     items_.push(
-      space(shape.gaps.rule * scale),
+      space(shape.gaps.rule * spacing),
       block(
         ruleWidth,
         height,
         rect({ name: 'impacto-fio', size: { w: ruleWidth, h: height }, fill: solid(on) }),
       ),
-      space(shape.gaps.side * scale),
+      space(shape.gaps.side * spacing),
       side,
     );
   }
   const content = row({ name: 'impacto-conteudo', align: 'center', items: items_ });
-  const padBlock = shape.padding.block * scale;
-  const padInline = shape.padding.inline * scale;
+  const padBlock = shape.padding.block * spacing;
+  const padInline = shape.padding.inline * spacing;
   const size = { w: content.width + 2 * padInline, h: content.height + 2 * padBlock };
   const panel = block(
     size.w,
@@ -1275,7 +1305,7 @@ function impacto(
   return stack({
     name: 'oferta-impacto',
     align: 'center',
-    gap: shape.titleGap * scale,
+    gap: shape.titleGap * spacing,
     items: [...(title === undefined ? [] : [title]), panel],
   });
 }

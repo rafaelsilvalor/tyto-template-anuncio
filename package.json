@@ -1,6 +1,6 @@
 {
   "name": "tyto-template-anuncio",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -29,7 +29,7 @@
     "@tyto/core": "npm:@rafaelsilvalor/tyto-core@^0.59.0",
     "@tyto/house-style": "npm:@rafaelsilvalor/tyto-house-style@^0.7.1",
     "@tyto/plugin-api": "npm:@rafaelsilvalor/tyto-plugin-api@^0.32.0",
-    "@tyto/template-kit": "npm:@rafaelsilvalor/tyto-template-kit@^0.20.0",
+    "@tyto/template-kit": "npm:@rafaelsilvalor/tyto-template-kit@^0.21.0",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.12.0",

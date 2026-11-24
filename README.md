@@ -64,9 +64,19 @@ writer learned in another template holds here:
   inside a `::lamina` it is that artwork's own and adds to the shared one there. A note
   written before the first slide is every artwork's too, and is drawn **above** the card, since
   the brief is read top to bottom as the art.
-- **`{peso: 1}` to `{peso: 5}`** on any block, 3 the designed size: 1 draws it at 0.7, 2 at
-  0.85, 4 at 1.2, 5 at 1.4 (Tyto `docs/slot-vocabulary.md`, `peso`); the head never grows past
-  the width its main line fills.
+- **`{peso: 1}` to `{peso: 8}`** on any block, 3 the designed size: 1 draws it at 0.7, 2 at
+  0.85, 4 at 1.2, 5 at 1.4, 6 at 1.6, 7 at 1.8, 8 at 2 (Tyto `docs/slot-vocabulary.md`,
+  `peso`); the head never grows past the width its main line fills.
+- **`tamanho`, `espaco` and `distancia`** split what `peso` does (0.14.0, Tyto TYTO-853):
+  `{tamanho: 6}` grows only the letters, `{espaco: 4}` opens only the spaces inside the block
+  (between parts and lines, the card's and the impacto's inner room), and `{distancia: 5}` sets
+  the room above the block, 1 to 5 for 0, 0.5, 1, 1.5 or 2 of the template's gap. `tamanho` and
+  `espaco`, when written, replace their side of `peso`. The note takes no `espaco`: it is one
+  text with no space inside it.
+- **A `\` followed by a mark starts a piece at that level** (0.14.0, Tyto ADR 0229):
+  `Prepare-se com o \ # líder em aprovações` draws the lead-in small and the name, at the name's
+  size, on the next line. Text after a `\` with no mark keeps the level before it. In the faixa,
+  a piece joined to the name stays with the name, out of the strip.
 
 `**…**` is bold wherever it is written. The words are never changed: the marks only rank them.
 
@@ -111,6 +121,12 @@ formats: [grid, story]
 
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
+
+**0.14.0 takes `tamanho`, `espaco` and `distancia`, `peso` up to 8, and a level after a `\`**
+(TYTO-855, through Tyto's kit 0.21.0, TYTO-853 and TYTO-854). A brief that writes none of them
+and no `\ #` draws what 0.13.0 drew. The card's segments now take their height from the spacing
+(`espaco`, else `peso`) and their words from the letters' scale; with neither written that is
+the same number as before.
 
 **0.13.0 sets the references' gaps** (TYTO-852). Measured ink to ink against TRT 4 (vitrine)
 and DETRAN SP (faixa): the room between two parts of one line, the status and the name, drops
