@@ -54,7 +54,28 @@ slots:
 # `{peso: 1}` draws it at 0.7, `{peso: 2}` at 0.85, `{peso: 4}` at 1.2, `{peso: 5}` at 1.4; the head
 # never grows past the width its main line fills.
 adjustments:
+  # A block's weight: letters and the spaces inside it together (Tyto's slot vocabulary).
   peso:
+    {
+      type: enum,
+      values: ['1', '2', '3', '4', '5', '6', '7', '8'],
+      default: '3',
+      applies: [titulo, corpo, apelo, nota],
+    }
+  # Only the letters, on peso's scales; peso keeps the spaces (TYTO-855).
+  tamanho:
+    {
+      type: enum,
+      values: ['1', '2', '3', '4', '5', '6', '7', '8'],
+      default: '3',
+      applies: [titulo, corpo, apelo, nota],
+    }
+  # Only the spaces inside the block; peso keeps the letters. The note is one text with no space
+  # inside it, so it takes none.
+  espaco:
+    { type: enum, values: ['1', '2', '3', '4', '5'], default: '3', applies: [titulo, corpo, apelo] }
+  # The room above the block, as a share of the template's gap: 0, 0.5, 1, 1.5 or 2.
+  distancia:
     {
       type: enum,
       values: ['1', '2', '3', '4', '5'],
