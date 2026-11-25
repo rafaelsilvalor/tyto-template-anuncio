@@ -1322,11 +1322,15 @@ function note(
   scale: number,
 ): Block | undefined {
   if (plain(words).trim() === '') return undefined;
+  const size = geometry.proof.size * scale;
+  // At least one line, as every line of the head and the body: where nothing can measure (a
+  // compile with no faces, the tests' own), a note of no height was a block the column dropped
+  // (TYTO-858). A measured line is never shorter, so a real render is unchanged.
   return grownTextBlock(
     words,
     room.width,
-    0,
-    styleOf(geometry.proof.size * scale, LIGHT, ink('texto'), ink),
+    size * LINE_HEIGHT,
+    styleOf(size, LIGHT, ink('texto'), ink),
     context.measure,
     { name: 'nota', align: 'center', lineHeight: LINE_HEIGHT, overflow: 'grow' },
   );
