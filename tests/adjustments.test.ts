@@ -232,6 +232,39 @@ describe('distancia', () => {
   });
 });
 
+describe('the note (TYTO-858)', () => {
+  const NOTE = 'Só nesta versão.';
+
+  it('is drawn by the tests’ own compile, which measures no font', async () => {
+    const texts = textsOf(await sceneOf(brief({ nota: NOTE })));
+    expect(find(texts, NOTE).name).toBe('nota');
+  });
+
+  it('draws at 1.6, 1.8 and 2 times its size at peso 6, 7 and 8', async () => {
+    const sizeAt = async (peso: string): Promise<number> =>
+      find(textsOf(await sceneOf(brief({ nota: `{peso: ${peso}} ${NOTE}` }))), NOTE).size;
+    const base = await sizeAt('3');
+    expect([await sizeAt('6'), await sizeAt('7'), await sizeAt('8')]).toEqual([
+      base * 1.6,
+      base * 1.8,
+      base * 2,
+    ]);
+  });
+
+  it('closes the room above it at distancia 1 and doubles it at 5', async () => {
+    const roomOf = async (nota: string): Promise<number> => {
+      const texts = textsOf(await sceneOf(brief({ nota })));
+      return find(texts, NOTE).top - find(texts, 'Lote Especial').top;
+    };
+    const plain = await roomOf(NOTE);
+    const close = await roomOf(`{distancia: 1} ${NOTE}`);
+    const far = await roomOf(`{distancia: 5} ${NOTE}`);
+    // The proof gap above the note is the feed post's 32 px.
+    expect(plain - close).toBeCloseTo(32, 3);
+    expect(far - plain).toBeCloseTo(32, 3);
+  });
+});
+
 describe('a piece after a typed break (Tyto ADR 0229)', () => {
   it('draws the lead-in at the base level and the name at the name’s size, on the next line', async () => {
     const texts = textsOf(

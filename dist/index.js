@@ -24396,11 +24396,12 @@ function impacto(context, ink, geometry, items, width, scale, spacing) {
 }
 function note(context, ink, geometry, words, room, scale) {
   if (plain(words).trim() === "") return void 0;
+  const size = geometry.proof.size * scale;
   return grownTextBlock(
     words,
     room.width,
-    0,
-    styleOf(geometry.proof.size * scale, LIGHT, ink("texto"), ink),
+    size * LINE_HEIGHT,
+    styleOf(size, LIGHT, ink("texto"), ink),
     context.measure,
     { name: "nota", align: "center", lineHeight: LINE_HEIGHT, overflow: "grow" }
   );

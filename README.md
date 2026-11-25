@@ -122,6 +122,10 @@ formats: [grid, story]
 Two versions in two formats are four images. `imagem:` and `recorte:` in the frontmatter name
 the head's photograph and a teacher cut out with no background.
 
+**0.14.1 makes the note at least one line tall** (TYTO-858). Where nothing can measure, as in
+the tests' own compile, a note had no height and the column dropped it, so no test saw it. A
+render with fonts draws what 0.14.0 drew.
+
 **0.14.0 takes `tamanho`, `espaco` and `distancia`, `peso` up to 8, and a level after a `\`**
 (TYTO-855, through Tyto's kit 0.21.0, TYTO-853 and TYTO-854). A brief that writes none of them
 and no `\ #` draws what 0.13.0 drew. The card's segments now take their height from the spacing
