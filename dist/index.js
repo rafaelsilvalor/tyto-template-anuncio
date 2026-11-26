@@ -22429,7 +22429,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22466,9 +22466,85 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.20.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.26.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+function sidesOf(padding) {
+  if (typeof padding === "number") {
+    return { top: padding, right: padding, bottom: padding, left: padding };
+  }
+  const [top, right, bottom, left] = padding;
+  return { top, right, bottom, left };
+}
+function shifted(draft, dx, dy) {
+  const transform2 = {
+    ...draft.transform,
+    x: draft.transform.x + dx,
+    y: draft.transform.y + dy
+  };
+  switch (draft.kind) {
+    case "group":
+      return { ...draft, transform: transform2 };
+    case "rect":
+      return { ...draft, transform: transform2 };
+    case "text":
+      return { ...draft, transform: transform2 };
+    case "image":
+      return { ...draft, transform: transform2 };
+    case "vector":
+      return { ...draft, transform: transform2 };
+  }
+}
+function offsetFor(align, room, size) {
+  switch (align) {
+    case "start":
+      return 0;
+    case "center":
+      return (room - size) / 2;
+    case "end":
+      return room - size;
+  }
+}
 function block(width, height, draft) {
   return { width, height, draft };
+}
+function stack(options) {
+  const gap = options.gap ?? 0;
+  const align = options.align ?? "start";
+  const width = options.items.reduce((widest, item) => Math.max(widest, item.width), 0);
+  let y = 0;
+  const children = [];
+  for (const item of options.items) {
+    children.push(shifted(item.draft, offsetFor(align, width, item.width), y));
+    y += item.height + gap;
+  }
+  const height = options.items.length === 0 ? 0 : y - gap;
+  return { width, height, draft: groupOf(children, options.name) };
+}
+function row(options) {
+  const gap = options.gap ?? 0;
+  const align = options.align ?? "start";
+  const height = options.items.reduce((tallest, item) => Math.max(tallest, item.height), 0);
+  let x = 0;
+  const children = [];
+  for (const item of options.items) {
+    children.push(shifted(item.draft, x, offsetFor(align, height, item.height)));
+    x += item.width + gap;
+  }
+  const width = options.items.length === 0 ? 0 : x - gap;
+  return { width, height, draft: groupOf(children, options.name) };
+}
+function inset(options) {
+  const sides = sidesOf(options.padding);
+  return {
+    width: options.item.width + sides.left + sides.right,
+    height: options.item.height + sides.top + sides.bottom,
+    draft: groupOf([shifted(options.item.draft, sides.left, sides.top)], options.name)
+  };
+}
+function at(x, y, item) {
+  return shifted(item.draft, x, y);
+}
+function groupOf(children, name) {
+  return group({ children, ...name === void 0 ? {} : { name } });
 }
 var NUMBER = String.raw`\d[\d.,]*`;
 var UNITS = [
@@ -22526,294 +22602,6 @@ var LABEL_EXCEPTIONS = [
   { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
   { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
 ];
-function mark(shape, height, fill, name) {
-  const scale = height / shape.box.h;
-  return block(
-    shape.box.w * scale,
-    height,
-    vector({
-      name,
-      geometry: { kind: "path", d: shape.d, fillRule: shape.fillRule },
-      size: shape.box,
-      fill: solid(fill),
-      transform: { scaleX: scale, scaleY: scale }
-    })
-  );
-}
-
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-KTMH3XT2.js
-var PLACEHOLDER_LOGO = {
-  box: { w: 186.09, h: 376.79 },
-  d: (
-    // The rectangle, its corners rounded by quarter arcs.
-    "M24,0H162.09A24,24,0,0,1,186.09,24V352.79A24,24,0,0,1,162.09,376.79H24A24,24,0,0,1,0,352.79V24A24,24,0,0,1,24,0ZM51.05,120A42,42,0,1,0,135.05,120A42,42,0,1,0,51.05,120Z"
-  ),
-  fillRule: "evenodd"
-};
-function oneInk(ink) {
-  return { primary: ink, secondary: ink };
-}
-function drawBrandMark(shape, height, inks, name) {
-  if (!isTonedMark(shape)) return mark(shape, height, inks.primary, name);
-  const scale = height / shape.box.h;
-  return block(
-    shape.box.w * scale,
-    height,
-    group({
-      name,
-      children: shape.layers.map(
-        (layer) => vector({
-          name: `${name}-${layer.tone}`,
-          geometry: { kind: "path", d: layer.d, fillRule: layer.fillRule },
-          size: shape.box,
-          fill: solid(inks[layer.tone]),
-          transform: { scaleX: scale, scaleY: scale }
-        })
-      )
-    })
-  );
-}
-function drawLogo(kit, height, inks) {
-  return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
-}
-function firstOffset(phase, step) {
-  return phase - Math.ceil(phase / step) * step;
-}
-function drawPattern(kit, options) {
-  const pattern = kit.pattern;
-  if (pattern === void 0) return void 0;
-  const scale = options.tileWidth / pattern.tile.w;
-  const tileHeight = pattern.tile.h * scale;
-  const left = firstOffset(options.phase?.x ?? 0, options.tileWidth);
-  const top = firstOffset(options.phase?.y ?? 0, tileHeight);
-  const columns = Math.ceil((options.size.w - left) / options.tileWidth);
-  const rows = Math.ceil((options.size.h - top) / tileHeight);
-  const tiles = [];
-  for (let row2 = 0; row2 < rows; row2 += 1) {
-    for (let column = 0; column < columns; column += 1) {
-      tiles.push(
-        group({
-          name: `pattern-${String(row2)}-${String(column)}`,
-          transform: { x: left + column * options.tileWidth, y: top + row2 * tileHeight },
-          children: pattern.layers.map((layer, index) => {
-            const ink = solid(options.inks[layer.tone]);
-            return vector({
-              name: `pattern-${layer.tone}-${String(index)}`,
-              geometry: {
-                kind: "path",
-                d: layer.d,
-                fillRule: "fillRule" in layer ? layer.fillRule : "nonzero"
-              },
-              size: pattern.tile,
-              ..."stroke" in layer ? { stroke: { paint: ink, width: layer.stroke, align: "center" } } : { fill: ink },
-              transform: { scaleX: scale, scaleY: scale },
-              // On each vector, not on the group: a group has no box in the IR, and
-              // export-html masks an element only inside its own box, so a masked group
-              // draws nothing (measured 2026-11-22, TYTO-842). A vector's box is its size.
-              ...options.mask !== void 0 ? { mask: options.mask } : {}
-            });
-          })
-        })
-      );
-    }
-  }
-  return block(
-    options.size.w,
-    options.size.h,
-    group({
-      name: "pattern",
-      opacity: options.opacity,
-      children: tiles
-    })
-  );
-}
-
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.7.1/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
-var TITLE_INK = "#7c7c7c";
-var ROW_INK = "#393939";
-var FACE = systemFont("CircularXX");
-var BOOK = 400;
-var BOLD2 = 700;
-var TYPE = {
-  title: 81,
-  day: 55,
-  schedule: 29,
-  exam: 25,
-  cta: 29,
-  note: 32,
-  signature: 28
-};
-var TITLE2 = {
-  /** A line's box, as a multiple of the size: one line and its leading. */
-  lineHeight: 1.2,
-  /** Between the title and the first day. */
-  gap: 74
-};
-var ROXO = {
-  accent: "#5900a6",
-  signOff: { kind: "note", text: "Clique no link para mais informa\xE7\xF5es" }
-};
-var ROXO_TABLE = { accent: ROXO.accent };
-var style = (size, weight, color2) => ({
-  font: FACE,
-  size,
-  weight,
-  color: color2
-});
-var EXAM_STYLE = style(TYPE.exam, BOOK, ROW_INK);
-var TITLE_STYLE = style(TYPE.title, BOLD2, TITLE_INK);
-var TITLE_LINE = Math.round(TYPE.title * TITLE2.lineHeight);
-var NUMBER2 = String.raw`\d[\d.,]*`;
-var TABLE_VALUE_DEFAULTS = {
-  "title-gap": TITLE.gap,
-  "title-floor": TITLE.floor,
-  "title-ceiling": TITLE.ceiling,
-  "body-floor": BODY.floor,
-  "body-ceiling": BODY.ceiling,
-  "optical-drop": OPTICAL_DROP,
-  paper: PAPER,
-  ink: INK,
-  zebra: ZEBRA,
-  "on-accent": ON_ACCENT,
-  "signature-ink": SIGNATURE_INK
-};
-
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.21.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
-function sidesOf(padding) {
-  if (typeof padding === "number") {
-    return { top: padding, right: padding, bottom: padding, left: padding };
-  }
-  const [top, right, bottom, left] = padding;
-  return { top, right, bottom, left };
-}
-function shifted(draft, dx, dy) {
-  const transform2 = {
-    ...draft.transform,
-    x: draft.transform.x + dx,
-    y: draft.transform.y + dy
-  };
-  switch (draft.kind) {
-    case "group":
-      return { ...draft, transform: transform2 };
-    case "rect":
-      return { ...draft, transform: transform2 };
-    case "text":
-      return { ...draft, transform: transform2 };
-    case "image":
-      return { ...draft, transform: transform2 };
-    case "vector":
-      return { ...draft, transform: transform2 };
-  }
-}
-function offsetFor(align, room, size) {
-  switch (align) {
-    case "start":
-      return 0;
-    case "center":
-      return (room - size) / 2;
-    case "end":
-      return room - size;
-  }
-}
-function block2(width, height, draft) {
-  return { width, height, draft };
-}
-function stack(options) {
-  const gap = options.gap ?? 0;
-  const align = options.align ?? "start";
-  const width = options.items.reduce((widest, item) => Math.max(widest, item.width), 0);
-  let y = 0;
-  const children = [];
-  for (const item of options.items) {
-    children.push(shifted(item.draft, offsetFor(align, width, item.width), y));
-    y += item.height + gap;
-  }
-  const height = options.items.length === 0 ? 0 : y - gap;
-  return { width, height, draft: groupOf(children, options.name) };
-}
-function row(options) {
-  const gap = options.gap ?? 0;
-  const align = options.align ?? "start";
-  const height = options.items.reduce((tallest, item) => Math.max(tallest, item.height), 0);
-  let x = 0;
-  const children = [];
-  for (const item of options.items) {
-    children.push(shifted(item.draft, x, offsetFor(align, height, item.height)));
-    x += item.width + gap;
-  }
-  const width = options.items.length === 0 ? 0 : x - gap;
-  return { width, height, draft: groupOf(children, options.name) };
-}
-function inset(options) {
-  const sides = sidesOf(options.padding);
-  return {
-    width: options.item.width + sides.left + sides.right,
-    height: options.item.height + sides.top + sides.bottom,
-    draft: groupOf([shifted(options.item.draft, sides.left, sides.top)], options.name)
-  };
-}
-function at(x, y, item) {
-  return shifted(item.draft, x, y);
-}
-function groupOf(children, name) {
-  return group({ children, ...name === void 0 ? {} : { name } });
-}
-var NUMBER3 = String.raw`\d[\d.,]*`;
-var UNITS2 = [
-  "s",
-  "ms",
-  "min",
-  "h",
-  "m",
-  "km",
-  "cm",
-  "mm",
-  "kg",
-  "g",
-  "mg",
-  "N",
-  "kN",
-  "J",
-  "kJ",
-  "W",
-  "kW",
-  "kWh",
-  "V",
-  "mV",
-  "A",
-  "mA",
-  "Hz",
-  "kHz",
-  "MHz",
-  "Pa",
-  "kPa",
-  "MPa",
-  "K",
-  "\xB0C",
-  "L",
-  "mL",
-  "rad",
-  "mol",
-  "\u03A9"
-];
-var KEEP_TOGETHER_RULES2 = [
-  { name: "currency sign + amount", before: String.raw`(?:R\$|US\$|€)`, after: String.raw`\d` },
-  {
-    name: "amount + scale word",
-    before: NUMBER3,
-    after: String.raw`(?:mil|milhão|milhões|bi|bilhão|bilhões)(?!\p{L})`
-  },
-  { name: "number + percent", before: NUMBER3, after: "%" },
-  {
-    name: "number + unit",
-    before: String.raw`[\d⁰¹²³⁴⁵⁶⁷⁸⁹]`,
-    after: String.raw`(?:${UNITS2.join("|")})(?!\p{L})`
-  }
-];
-var LABEL_EXCEPTIONS2 = [
-  { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
-  { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
-];
 var HIGHLIGHT_WEIGHT = 700;
 function mergeFamilies(base2, over) {
   if (over === void 0) return base2;
@@ -22859,6 +22647,20 @@ function highlights(spec) {
     },
     with: (override) => highlights(merge2(spec, override))
   };
+}
+function mark(shape, height, fill, name) {
+  const scale = height / shape.box.h;
+  return block(
+    shape.box.w * scale,
+    height,
+    vector({
+      name,
+      geometry: { kind: "path", d: shape.d, fillRule: shape.fillRule },
+      size: shape.box,
+      fill: solid(fill),
+      transform: { scaleX: scale, scaleY: scale }
+    })
+  );
 }
 var FIELD_SEPARATOR = "|";
 function fields(line, limit) {
@@ -22929,21 +22731,21 @@ function runsIn(value, style2) {
   );
 }
 function nothing(width, height) {
-  return block2(width, height, group({ children: [] }));
+  return block(width, height, group({ children: [] }));
 }
 function grownTextBlock(value, width, minHeight, style2, measure, options = {}) {
   const runs = runsIn(value, style2);
   if (runs === void 0) return nothing(width, minHeight);
   const measured = measure(text({ ...options, runs, box: { w: width } }));
   if (measured === void 0) {
-    return block2(
+    return block(
       width,
       minHeight,
       text({ ...options, runs, box: { w: width, h: minHeight }, overflow: "shrink" })
     );
   }
   const height = Math.max(minHeight, measured.height);
-  return block2(width, height, text({ ...options, runs, box: { w: width, h: height } }));
+  return block(width, height, text({ ...options, runs, box: { w: width, h: height } }));
 }
 function naturalWidth(value, style2, measure) {
   const runs = runsIn(value, style2);
@@ -23102,7 +22904,7 @@ function levelStack(items, style2, width, measure) {
     }
   }
   if (children.length === 0) return stack({ name: style2.name, items: [] });
-  return block2(width, y, group({ name: style2.name, children }));
+  return block(width, y, group({ name: style2.name, children }));
 }
 function spaceOf(gap, above, below) {
   return typeof gap === "number" ? gap : gap(above, below);
@@ -23391,10 +23193,10 @@ function entriesInOrder(order, kinds, fallback = []) {
     return columnOrder(fallback, order);
   }
   const placed = [];
-  for (const block22 of order) {
-    const kind = kinds[block22.name];
-    const built = block22.slot === void 0 || kind === void 0 ? void 0 : kind(block22.slot);
-    if (built !== void 0) placed.push({ name: block22.name, ...built });
+  for (const block2 of order) {
+    const kind = kinds[block2.name];
+    const built = block2.slot === void 0 || kind === void 0 ? void 0 : kind(block2.slot);
+    if (built !== void 0) placed.push({ name: block2.name, ...built });
   }
   const written = new Set(placed.map((entry) => entry.name));
   const result = [];
@@ -23415,12 +23217,12 @@ function entriesInOrder(order, kinds, fallback = []) {
 function blockColumn(area, options) {
   const values = parameterValues(BLOCK_COLUMN_PARAMETERS, options.parameters);
   const entries = columnOrder(options.entries, options.order);
-  const gapOf = (above, below) => Math.max(0, options.gapBetween?.(above, below) ?? values.gap);
+  const gapOf2 = (above, below) => Math.max(0, options.gapBetween?.(above, below) ?? values.gap);
   const bounded = Number.isFinite(area.height);
   let shrink = 1;
-  let laid = measuredAt(entries, area, 1, gapOf);
+  let laid = measuredAt(entries, area, 1, gapOf2);
   if (bounded && laid.content > area.height && values.shrinkFloor < 1) {
-    const floor = measuredAt(entries, area, values.shrinkFloor, gapOf);
+    const floor = measuredAt(entries, area, values.shrinkFloor, gapOf2);
     if (floor.content > area.height) {
       shrink = values.shrinkFloor;
       laid = floor;
@@ -23430,7 +23232,7 @@ function blockColumn(area, options) {
       let fitting = floor;
       while (tooTall - fits > SHRINK_PRECISION) {
         const middle = (fits + tooTall) / 2;
-        const tried = measuredAt(entries, area, middle, gapOf);
+        const tried = measuredAt(entries, area, middle, gapOf2);
         if (tried.content <= area.height) {
           fits = middle;
           fitting = tried;
@@ -23473,7 +23275,7 @@ function blockColumn(area, options) {
   };
 }
 var SHRINK_PRECISION = 5e-3;
-function measuredAt(entries, area, factor, gapOf) {
+function measuredAt(entries, area, factor, gapOf2) {
   const measured = [];
   for (const entry of entries) {
     const scale = (entry.scale ?? 1) * factor;
@@ -23485,7 +23287,7 @@ function measuredAt(entries, area, factor, gapOf) {
   }
   const gaps = measured.map((item, index) => {
     const below = measured[index + 1];
-    return below === void 0 ? 0 : gapOf(item.name, below.name) * below.distance;
+    return below === void 0 ? 0 : gapOf2(item.name, below.name) * below.distance;
   });
   const content = measured.reduce((sum, item, index) => sum + item.block.height + gaps[index], 0);
   return { measured, gaps, content };
@@ -23556,7 +23358,7 @@ function naturalCardHeight(segments) {
 }
 function card(segments, style2, report) {
   if (segments.length === 0) {
-    return { ...block2(0, 0, group({ name: style2.name, children: [] })), segments: [] };
+    return { ...block(0, 0, group({ name: style2.name, children: [] })), segments: [] };
   }
   const natural = naturalCardHeight(segments);
   const height = style2.height ?? natural;
@@ -23600,7 +23402,7 @@ function card(segments, style2, report) {
     ...style2.stroke === void 0 ? {} : { stroke: style2.stroke }
   });
   const drawn = group({ name: style2.name, children: [outline, ...bands, ...words] });
-  return { ...block2(style2.width, height, drawn), segments: placed };
+  return { ...block(style2.width, height, drawn), segments: placed };
 }
 function cardSegments(items, draw, minHeight = {}) {
   const parts = items.flatMap((item) => item.kind === "line" ? item.parts : []);
@@ -23620,6 +23422,144 @@ function cardSegments(items, draw, minHeight = {}) {
 function heightOf(segment) {
   return Math.max(segment.minHeight ?? 0, segment.content.height);
 }
+var NO_FILL = solid({ r: 0, g: 0, b: 0, a: 0 });
+
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-KTMH3XT2.js
+var PLACEHOLDER_LOGO = {
+  box: { w: 186.09, h: 376.79 },
+  d: (
+    // The rectangle, its corners rounded by quarter arcs.
+    "M24,0H162.09A24,24,0,0,1,186.09,24V352.79A24,24,0,0,1,162.09,376.79H24A24,24,0,0,1,0,352.79V24A24,24,0,0,1,24,0ZM51.05,120A42,42,0,1,0,135.05,120A42,42,0,1,0,51.05,120Z"
+  ),
+  fillRule: "evenodd"
+};
+function oneInk(ink) {
+  return { primary: ink, secondary: ink };
+}
+function drawBrandMark(shape, height, inks, name) {
+  if (!isTonedMark(shape)) return mark(shape, height, inks.primary, name);
+  const scale = height / shape.box.h;
+  return block(
+    shape.box.w * scale,
+    height,
+    group({
+      name,
+      children: shape.layers.map(
+        (layer) => vector({
+          name: `${name}-${layer.tone}`,
+          geometry: { kind: "path", d: layer.d, fillRule: layer.fillRule },
+          size: shape.box,
+          fill: solid(inks[layer.tone]),
+          transform: { scaleX: scale, scaleY: scale }
+        })
+      )
+    })
+  );
+}
+function drawLogo(kit, height, inks) {
+  return drawBrandMark(kit.logo ?? PLACEHOLDER_LOGO, height, inks, "logo");
+}
+function firstOffset(phase, step) {
+  return phase - Math.ceil(phase / step) * step;
+}
+function drawPattern(kit, options) {
+  const pattern = kit.pattern;
+  if (pattern === void 0) return void 0;
+  const scale = options.tileWidth / pattern.tile.w;
+  const tileHeight = pattern.tile.h * scale;
+  const left = firstOffset(options.phase?.x ?? 0, options.tileWidth);
+  const top = firstOffset(options.phase?.y ?? 0, tileHeight);
+  const columns = Math.ceil((options.size.w - left) / options.tileWidth);
+  const rows = Math.ceil((options.size.h - top) / tileHeight);
+  const tiles = [];
+  for (let row2 = 0; row2 < rows; row2 += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      tiles.push(
+        group({
+          name: `pattern-${String(row2)}-${String(column)}`,
+          transform: { x: left + column * options.tileWidth, y: top + row2 * tileHeight },
+          children: pattern.layers.map((layer, index) => {
+            const ink = solid(options.inks[layer.tone]);
+            return vector({
+              name: `pattern-${layer.tone}-${String(index)}`,
+              geometry: {
+                kind: "path",
+                d: layer.d,
+                fillRule: "fillRule" in layer ? layer.fillRule : "nonzero"
+              },
+              size: pattern.tile,
+              ..."stroke" in layer ? { stroke: { paint: ink, width: layer.stroke, align: "center" } } : { fill: ink },
+              transform: { scaleX: scale, scaleY: scale },
+              // On each vector, not on the group: a group has no box in the IR, and
+              // export-html masks an element only inside its own box, so a masked group
+              // draws nothing (measured 2026-11-22, TYTO-842). A vector's box is its size.
+              ...options.mask !== void 0 ? { mask: options.mask } : {}
+            });
+          })
+        })
+      );
+    }
+  }
+  return block(
+    options.size.w,
+    options.size.h,
+    group({
+      name: "pattern",
+      opacity: options.opacity,
+      children: tiles
+    })
+  );
+}
+
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+var TITLE_INK = "#7c7c7c";
+var ROW_INK = "#393939";
+var FACE = systemFont("CircularXX");
+var BOOK = 400;
+var BOLD2 = 700;
+var TYPE = {
+  title: 81,
+  day: 55,
+  schedule: 29,
+  exam: 25,
+  cta: 29,
+  note: 32,
+  signature: 28
+};
+var TITLE2 = {
+  /** A line's box, as a multiple of the size: one line and its leading. */
+  lineHeight: 1.2,
+  /** Between the title and the first day. */
+  gap: 74
+};
+var ROXO = {
+  accent: "#5900a6",
+  signOff: { kind: "note", text: "Clique no link para mais informa\xE7\xF5es" }
+};
+var ROXO_TABLE = { accent: ROXO.accent };
+var style = (size, weight, color2) => ({
+  font: FACE,
+  size,
+  weight,
+  color: color2
+});
+var EXAM_STYLE = style(TYPE.exam, BOOK, ROW_INK);
+var TITLE_STYLE = style(TYPE.title, BOLD2, TITLE_INK);
+var TITLE_LINE = Math.round(TYPE.title * TITLE2.lineHeight);
+var NUMBER2 = String.raw`\d[\d.,]*`;
+var TABLE_VALUE_DEFAULTS = {
+  "title-gap": TITLE.gap,
+  "title-floor": TITLE.floor,
+  "title-ceiling": TITLE.ceiling,
+  "body-floor": BODY.floor,
+  "body-ceiling": BODY.ceiling,
+  "optical-drop": OPTICAL_DROP,
+  paper: PAPER,
+  ink: INK,
+  zebra: ZEBRA,
+  "on-accent": ON_ACCENT,
+  "signature-ink": SIGNATURE_INK
+};
 
 // src/template.ts
 var COLOR_DEFAULTS = {
@@ -24219,7 +24159,7 @@ function body(context, ink, geometry, words, room, scale, spacing) {
 }
 function dots(color2, ratio) {
   const size = DOT * ratio;
-  const dot = () => block2(
+  const dot = () => block(
     size,
     size,
     rect({ name: "ponto", size: { w: size, h: size }, radius: size / 2, fill: solid(color2) })
@@ -24312,7 +24252,7 @@ function impacto(context, ink, geometry, items, width, scale, spacing) {
       overflow: "grow"
     });
   };
-  const space = (room) => block2(room, 0, group({ name: "espaco", children: [] }));
+  const space = (room) => block(room, 0, group({ name: "espaco", children: [] }));
   const figure = piece("impacto-numero", said(discount.figure), shape.figure * scale, BLACK, on);
   const unitParts = [];
   if (discount.percent) {
@@ -24354,7 +24294,7 @@ function impacto(context, ink, geometry, items, width, scale, spacing) {
   if (side !== void 0) {
     items_.push(
       space(shape.gaps.rule * spacing),
-      block2(
+      block(
         ruleWidth,
         height,
         rect({ name: "impacto-fio", size: { w: ruleWidth, h: height }, fill: solid(on) })
@@ -24367,7 +24307,7 @@ function impacto(context, ink, geometry, items, width, scale, spacing) {
   const padBlock = shape.padding.block * spacing;
   const padInline = shape.padding.inline * spacing;
   const size = { w: content.width + 2 * padInline, h: content.height + 2 * padBlock };
-  const panel = block2(
+  const panel = block(
     size.w,
     size.h,
     group({
