@@ -2805,23 +2805,23 @@ function canParseURL(input2) {
     return false;
   }
 }
-function validateURL(trimmed2, def) {
+function validateURL(trimmed, def) {
   if (!("normalize" in def) && !("hostname" in def) && !("protocol" in def)) {
-    return canParseURL(trimmed2) || URL_UNPARSEABLE;
+    return canParseURL(trimmed) || URL_UNPARSEABLE;
   }
-  return parseURLObject(trimmed2, def);
+  return parseURLObject(trimmed, def);
 }
-function parseURLObject(trimmed2, def) {
-  if (!def.normalize && def.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed2)) {
+function parseURLObject(trimmed, def) {
+  if (!def.normalize && def.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed)) {
     return URL_BAD_FORMAT;
   }
   try {
     if (typeof URL !== "undefined") {
       const URLStatic = URL;
       if (typeof URLStatic.parse === "function")
-        return URLStatic.parse(trimmed2) ?? URL_UNPARSEABLE;
+        return URLStatic.parse(trimmed) ?? URL_UNPARSEABLE;
     }
-    return new URL(trimmed2);
+    return new URL(trimmed);
   } catch {
     return URL_UNPARSEABLE;
   }
@@ -2842,8 +2842,8 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
   $ZodStringFormat.init(inst, def);
   inst._zod.check = (payload) => {
     try {
-      const trimmed2 = payload.value.trim();
-      const url2 = validateURL(trimmed2, def);
+      const trimmed = payload.value.trim();
+      const url2 = validateURL(trimmed, def);
       if (url2 === URL_BAD_FORMAT) {
         payload.issues.push({
           code: "invalid_format",
@@ -2866,7 +2866,7 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
         return;
       }
       if (url2 === true) {
-        payload.value = stripTabAndNewline(trimmed2);
+        payload.value = stripTabAndNewline(trimmed);
         return;
       }
       if (def.hostname && !urlHostnameOk(url2, def.hostname)) {
@@ -2891,7 +2891,7 @@ var $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
           continue: !def.abort
         });
       }
-      payload.value = def.normalize ? url2.href : stripTabAndNewline(trimmed2);
+      payload.value = def.normalize ? url2.href : stripTabAndNewline(trimmed);
       return;
     } catch (_) {
       payload.issues.push({
@@ -19721,7 +19721,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.59.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-NUEMZ7BR.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.60.0/node_modules/@rafaelsilvalor/tyto-core/dist/chunk-W34XOUY2.js
 var SVG_MARKUP_WAY_OUT = "only flat shapes painted by presentation attributes are inlined: draw it as a contour (a vector of kind 'path'), place it as a PNG, or re-export it from Illustrator with Styling set to Presentation Attributes";
 var diagnosticCodes = {
   // Three syntax codes and not one, because fatality is a property of the code and one
@@ -22206,7 +22206,15 @@ function run(text2, options) {
     weight: options.weight ?? 400,
     style: options.style ?? "normal",
     color: paintOf(options.color),
-    ...options.decoration !== void 0 ? { decoration: options.decoration } : {}
+    ...options.decoration !== void 0 ? { decoration: options.decoration } : {},
+    ...options.box !== void 0 ? { box: boxOf(options.box) } : {}
+  };
+}
+function boxOf(box) {
+  return {
+    paint: typeof box.paint === "object" && "kind" in box.paint ? box.paint : { kind: "solid", color: color(box.paint) },
+    padding: { x: box.padding.x, over: box.padding.over, under: box.padding.under },
+    ...box.radius !== void 0 ? { radius: box.radius } : {}
   };
 }
 var BOLD = 700;
@@ -22229,7 +22237,11 @@ function samePaint(a, b) {
   }
 }
 var sameFont = (a, b) => a.family === b.family && a.source === b.source && a.path === b.path;
-var sameStyle = (a, b) => a.size === b.size && a.weight === b.weight && a.style === b.style && a.decoration === b.decoration && sameFont(a.font, b.font) && samePaint(a.color, b.color);
+function sameBox(a, b) {
+  if (a === void 0 || b === void 0) return a === b;
+  return a.padding.x === b.padding.x && a.padding.over === b.padding.over && a.padding.under === b.padding.under && a.radius === b.radius && samePaint(a.paint, b.paint);
+}
+var sameStyle = (a, b) => a.size === b.size && a.weight === b.weight && a.style === b.style && a.decoration === b.decoration && sameFont(a.font, b.font) && samePaint(a.color, b.color) && sameBox(a.box, b.box);
 function absorbedByPrevious(target, produced, range) {
   const previous = target[target.length - 1];
   if (previous === void 0 || previous.kind !== "text") return false;
@@ -22327,7 +22339,7 @@ function contrastRatio(a, b) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.59.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-core@0.60.0/node_modules/@rafaelsilvalor/tyto-core/dist/template.js
 function base(options) {
   return {
     transform: { ...identityTransform, ...options.transform },
@@ -22429,7 +22441,7 @@ function frame(options) {
   };
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-3KKHXN6D.js
 var PAPER = "#fbfbfb";
 var INK = "#000000";
 var ZEBRA = "#f2f2f4";
@@ -22466,7 +22478,37 @@ var BODY = {
 };
 var OPTICAL_DROP = 0.15;
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.26.0/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-template-kit@0.27.1/node_modules/@rafaelsilvalor/tyto-template-kit/dist/index.js
+function parameterValues(schema, given = {}) {
+  const values = {};
+  for (const [name, declared] of Object.entries(schema)) {
+    const value = given[name];
+    values[name] = valueWithin(declared, value);
+  }
+  return values;
+}
+function valueWithin(declared, value) {
+  if (declared.kind === "choice") {
+    return typeof value === "string" && declared.choices.includes(value) ? value : declared.default;
+  }
+  if (typeof value !== "number" || Number.isNaN(value)) return declared.default;
+  return Math.min(declared.max ?? Infinity, Math.max(declared.min ?? -Infinity, value));
+}
+function anchorOf(item) {
+  return item.anchor ?? { capTop: 0, baseline: item.height };
+}
+function anchorAcross(items, offsets) {
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (first === void 0 || last === void 0) return {};
+  if (!items.some((item) => item.anchor !== void 0)) return {};
+  return {
+    anchor: {
+      capTop: offsets[0] + anchorOf(first).capTop,
+      baseline: offsets[items.length - 1] + anchorOf(last).baseline
+    }
+  };
+}
 function sidesOf(padding) {
   if (typeof padding === "number") {
     return { top: padding, right: padding, bottom: padding, left: padding };
@@ -22507,37 +22549,141 @@ function block(width, height, draft) {
   return { width, height, draft };
 }
 function stack(options) {
-  const gap = options.gap ?? 0;
-  const align = options.align ?? "start";
-  const width = options.items.reduce((widest, item) => Math.max(widest, item.width), 0);
-  let y = 0;
-  const children = [];
-  for (const item of options.items) {
-    children.push(shifted(item.draft, offsetFor(align, width, item.width), y));
-    y += item.height + gap;
-  }
-  const height = options.items.length === 0 ? 0 : y - gap;
-  return { width, height, draft: groupOf(children, options.name) };
+  return blockOnly(
+    stackIn(
+      UNBOUNDED,
+      options.items,
+      { gap: options.gap ?? 0, align: options.align ?? "start" },
+      { ...options.name === void 0 ? {} : { name: options.name } }
+    )
+  );
 }
 function row(options) {
-  const gap = options.gap ?? 0;
-  const align = options.align ?? "start";
-  const height = options.items.reduce((tallest, item) => Math.max(tallest, item.height), 0);
-  let x = 0;
-  const children = [];
-  for (const item of options.items) {
-    children.push(shifted(item.draft, x, offsetFor(align, height, item.height)));
-    x += item.width + gap;
-  }
-  const width = options.items.length === 0 ? 0 : x - gap;
-  return { width, height, draft: groupOf(children, options.name) };
+  return blockOnly(
+    rowIn(
+      UNBOUNDED,
+      options.items,
+      { gap: options.gap ?? 0, align: options.align ?? "start" },
+      { ...options.name === void 0 ? {} : { name: options.name } }
+    )
+  );
 }
 function inset(options) {
   const sides = sidesOf(options.padding);
+  return blockOnly(
+    insetIn(UNBOUNDED, options.item, sides, {
+      ...options.name === void 0 ? {} : { name: options.name }
+    })
+  );
+}
+var UNBOUNDED = { width: Infinity, height: Infinity };
+function blockOnly(item) {
   return {
-    width: options.item.width + sides.left + sides.right,
-    height: options.item.height + sides.top + sides.bottom,
-    draft: groupOf([shifted(options.item.draft, sides.left, sides.top)], options.name)
+    width: item.width,
+    height: item.height,
+    draft: item.draft,
+    ...item.anchor === void 0 ? {} : { anchor: item.anchor }
+  };
+}
+function overrun(size, room) {
+  return Number.isFinite(room) ? Math.max(0, size - room) : 0;
+}
+var STACK_PARAMETERS = {
+  gap: {
+    kind: "length",
+    default: 0,
+    description: "Space between neighbours, in px; an item may state its own gap above it."
+  },
+  align: {
+    kind: "choice",
+    default: "start",
+    choices: ["start", "center", "end"],
+    description: "Where a narrower child sits across the stack."
+  },
+  measureFrom: {
+    kind: "choice",
+    default: "box",
+    choices: ["box", "capitals"],
+    description: "Where a gap runs from: one box's foot to the next one's top, or one block's last baseline to the next one's first capitals (ADR 0230 decision 2)."
+  }
+};
+function stackItemOf(entry) {
+  return "item" in entry ? { block: entry.item, gap: entry.gapAbove } : { block: entry };
+}
+function stackIn(area, items, given = {}, options = {}) {
+  const values = parameterValues(STACK_PARAMETERS, given);
+  const entries = items.map(stackItemOf);
+  const blocks = entries.map((entry) => entry.block);
+  const widest = blocks.reduce((most, item) => Math.max(most, item.width), 0);
+  const width = Number.isFinite(area.width) ? area.width : widest;
+  let y = 0;
+  const children = [];
+  const tops = [];
+  for (const [index, entry] of entries.entries()) {
+    const above = blocks[index - 1];
+    if (above !== void 0) {
+      const gap = entry.gap ?? values.gap;
+      y = values.measureFrom === "capitals" ? tops[index - 1] + anchorOf(above).baseline + gap - anchorOf(entry.block).capTop : y + (above.height + gap);
+    }
+    children.push(shifted(entry.block.draft, offsetFor(values.align, width, entry.block.width), y));
+    tops.push(y);
+  }
+  const last = blocks[blocks.length - 1];
+  const height = last === void 0 ? 0 : values.measureFrom === "capitals" ? y + last.height : y + (last.height + values.gap) - values.gap;
+  return {
+    width,
+    height,
+    draft: groupOf(children, options.name),
+    ...anchorAcross(blocks, tops),
+    overflow: overrun(height, area.height)
+  };
+}
+var ROW_PARAMETERS = {
+  gap: { kind: "length", default: 0, description: "Space between neighbours, in px." },
+  align: {
+    kind: "choice",
+    default: "start",
+    choices: ["start", "center", "end"],
+    description: "Where a shorter child sits down the row."
+  }
+};
+function rowIn(area, items, given = {}, options = {}) {
+  const values = parameterValues(ROW_PARAMETERS, given);
+  const tallest = items.reduce((most, item) => Math.max(most, item.height), 0);
+  const height = Number.isFinite(area.height) ? area.height : tallest;
+  let x = 0;
+  const children = [];
+  const tops = [];
+  for (const item of items) {
+    const top = offsetFor(values.align, height, item.height);
+    children.push(shifted(item.draft, x, top));
+    tops.push(top);
+    x += item.width + values.gap;
+  }
+  const width = items.length === 0 ? 0 : x - values.gap;
+  return {
+    width,
+    height,
+    draft: groupOf(children, options.name),
+    ...anchorAcross(items, tops),
+    overflow: overrun(width, area.width)
+  };
+}
+var INSET_PARAMETERS = {
+  top: { kind: "length", default: 0, description: "Room above the block, in px." },
+  right: { kind: "length", default: 0, description: "Room right of the block, in px." },
+  bottom: { kind: "length", default: 0, description: "Room below the block, in px." },
+  left: { kind: "length", default: 0, description: "Room left of the block, in px." }
+};
+function insetIn(area, item, given = {}, options = {}) {
+  const sides = parameterValues(INSET_PARAMETERS, given);
+  const height = item.height + sides.top + sides.bottom;
+  return {
+    width: item.width + sides.left + sides.right,
+    height,
+    draft: groupOf([shifted(item.draft, sides.left, sides.top)], options.name),
+    ...anchorAcross([item], [sides.top]),
+    overflow: overrun(height, area.height)
   };
 }
 function at(x, y, item) {
@@ -22545,6 +22691,112 @@ function at(x, y, item) {
 }
 function groupOf(children, name) {
   return group({ children, ...name === void 0 ? {} : { name } });
+}
+var DEFAULT_METRICS = { ascent: 0.75, descent: 0.25, capHeight: 0.709 };
+function capOffset(size, lineHeight, metrics = DEFAULT_METRICS) {
+  const excess = (lineHeight - (metrics.ascent + metrics.descent)) / 2;
+  return size * (excess + (metrics.ascent - metrics.capHeight));
+}
+var HIGHLIGHT_WEIGHT = 700;
+function mergeFamilies(base2, over) {
+  if (over === void 0) return base2;
+  const merged = { ...base2 };
+  for (const [key, family] of Object.entries(over)) {
+    const previous = merged[key];
+    const like = family.like ?? previous?.like;
+    merged[key] = {
+      ...like === void 0 ? {} : { like },
+      values: { ...previous?.values, ...family.values }
+    };
+  }
+  return merged;
+}
+function merge2(base2, over) {
+  const marks = mergeFamilies(base2.marks, over.marks);
+  return {
+    bold: { ...base2.bold, ...over.bold },
+    italic: { ...base2.italic, ...over.italic },
+    ...marks === void 0 ? {} : { marks }
+  };
+}
+function markStyle(spec, key, value) {
+  const family = spec.marks?.[key];
+  const named = family?.values[value];
+  if (family === void 0 || named === void 0) return void 0;
+  switch (family.like) {
+    case "bold":
+      return { weight: HIGHLIGHT_WEIGHT, ...spec.bold, ...named };
+    case "italic":
+      return { ...spec.italic, ...named, style: "italic" };
+    default:
+      return named;
+  }
+}
+function highlights(spec) {
+  return {
+    spec,
+    options: {
+      bold: { weight: HIGHLIGHT_WEIGHT, ...spec.bold },
+      italic: spec.italic ?? {},
+      mark: (key, value) => markStyle(spec, key, value)
+    },
+    with: (override) => highlights(merge2(spec, override))
+  };
+}
+var FIELD_SEPARATOR = "|";
+function fields(line, limit) {
+  const result = [[]];
+  const last = () => result[result.length - 1];
+  for (const inline of line) {
+    if (inline.kind !== "text" || limit !== void 0 && result.length >= limit) {
+      last().push(inline);
+      continue;
+    }
+    const parts = inline.value.split(FIELD_SEPARATOR);
+    for (const [index, part] of parts.entries()) {
+      if (index > 0) {
+        if (limit !== void 0 && result.length >= limit) {
+          last().push(sliceOf(inline, `${FIELD_SEPARATOR}${part}`, inline.value));
+          continue;
+        }
+        result.push([]);
+      }
+      if (part !== "") last().push(sliceOf(inline, part, inline.value));
+    }
+  }
+  return result.map(trimEnds);
+}
+function plain(text5) {
+  return text5.map((inline) => {
+    switch (inline.kind) {
+      case "text":
+        return inline.value;
+      case "break":
+        return "\n";
+      default:
+        return plain(inline.children);
+    }
+  }).join("");
+}
+function sliceOf(inline, part, whole) {
+  const offset = whole.indexOf(part);
+  const start = Math.min(inline.range.start + Math.max(offset, 0), inline.range.end);
+  return {
+    kind: "text",
+    value: part,
+    range: { start, end: Math.min(start + part.length, inline.range.end) }
+  };
+}
+function trimEnds(field) {
+  const trimmed3 = [...field];
+  const first = trimmed3[0];
+  if (first?.kind === "text") trimmed3[0] = { ...first, value: first.value.replace(/^\s+/u, "") };
+  const lastIndex = trimmed3.length - 1;
+  const final = trimmed3[lastIndex];
+  if (final?.kind === "text") {
+    trimmed3[lastIndex] = { ...final, value: final.value.replace(/\s+$/u, "") };
+  }
+  return trimmed3.filter((inline) => inline.kind !== "text" || inline.value !== "");
 }
 var NUMBER = String.raw`\d[\d.,]*`;
 var UNITS = [
@@ -22602,120 +22854,37 @@ var LABEL_EXCEPTIONS = [
   { name: "a time", pattern: String.raw`\d{1,2}:\d{2}` },
   { name: "a URL", pattern: String.raw`\p{L}[\p{L}\d+.-]*://\S*` }
 ];
-var HIGHLIGHT_WEIGHT = 700;
-function mergeFamilies(base2, over) {
-  if (over === void 0) return base2;
-  const merged = { ...base2 };
-  for (const [key, family] of Object.entries(over)) {
-    const previous = merged[key];
-    const like = family.like ?? previous?.like;
-    merged[key] = {
-      ...like === void 0 ? {} : { like },
-      values: { ...previous?.values, ...family.values }
-    };
-  }
-  return merged;
+function mark(shape2, height, fill, name) {
+  const drawn = markIn(shape2, { width: Infinity, height }, fill, {}, { name });
+  return { width: drawn.width, height: drawn.height, draft: drawn.draft };
 }
-function merge2(base2, over) {
-  const marks = mergeFamilies(base2.marks, over.marks);
+var MARK_PARAMETERS = {
+  height: {
+    kind: "length",
+    default: 24,
+    min: 0,
+    description: "The mark's height, in px; absent, the area's height when it has one."
+  }
+};
+function markIn(shape2, area, fill, given = {}, options = {}) {
+  const values = parameterValues(MARK_PARAMETERS, given);
+  const height = given.height !== void 0 || !Number.isFinite(area.height) ? values.height : area.height;
+  const scale = height / shape2.box.h;
+  const width = shape2.box.w * scale;
   return {
-    bold: { ...base2.bold, ...over.bold },
-    italic: { ...base2.italic, ...over.italic },
-    ...marks === void 0 ? {} : { marks }
+    ...block(
+      width,
+      height,
+      vector({
+        name: options.name ?? "mark",
+        geometry: { kind: "path", d: shape2.d, fillRule: shape2.fillRule },
+        size: shape2.box,
+        fill: solid(fill),
+        transform: { scaleX: scale, scaleY: scale }
+      })
+    ),
+    overflow: Number.isFinite(area.width) ? Math.max(0, width - area.width) : 0
   };
-}
-function markStyle(spec, key, value) {
-  const family = spec.marks?.[key];
-  const named = family?.values[value];
-  if (family === void 0 || named === void 0) return void 0;
-  switch (family.like) {
-    case "bold":
-      return { weight: HIGHLIGHT_WEIGHT, ...spec.bold, ...named };
-    case "italic":
-      return { ...spec.italic, ...named, style: "italic" };
-    default:
-      return named;
-  }
-}
-function highlights(spec) {
-  return {
-    spec,
-    options: {
-      bold: { weight: HIGHLIGHT_WEIGHT, ...spec.bold },
-      italic: spec.italic ?? {},
-      mark: (key, value) => markStyle(spec, key, value)
-    },
-    with: (override) => highlights(merge2(spec, override))
-  };
-}
-function mark(shape, height, fill, name) {
-  const scale = height / shape.box.h;
-  return block(
-    shape.box.w * scale,
-    height,
-    vector({
-      name,
-      geometry: { kind: "path", d: shape.d, fillRule: shape.fillRule },
-      size: shape.box,
-      fill: solid(fill),
-      transform: { scaleX: scale, scaleY: scale }
-    })
-  );
-}
-var FIELD_SEPARATOR = "|";
-function fields(line, limit) {
-  const result = [[]];
-  const last = () => result[result.length - 1];
-  for (const inline of line) {
-    if (inline.kind !== "text" || limit !== void 0 && result.length >= limit) {
-      last().push(inline);
-      continue;
-    }
-    const parts = inline.value.split(FIELD_SEPARATOR);
-    for (const [index, part] of parts.entries()) {
-      if (index > 0) {
-        if (limit !== void 0 && result.length >= limit) {
-          last().push(sliceOf(inline, `${FIELD_SEPARATOR}${part}`, inline.value));
-          continue;
-        }
-        result.push([]);
-      }
-      if (part !== "") last().push(sliceOf(inline, part, inline.value));
-    }
-  }
-  return result.map(trimEnds);
-}
-function plain(text2) {
-  return text2.map((inline) => {
-    switch (inline.kind) {
-      case "text":
-        return inline.value;
-      case "break":
-        return "\n";
-      default:
-        return plain(inline.children);
-    }
-  }).join("");
-}
-function sliceOf(inline, part, whole) {
-  const offset = whole.indexOf(part);
-  const start = Math.min(inline.range.start + Math.max(offset, 0), inline.range.end);
-  return {
-    kind: "text",
-    value: part,
-    range: { start, end: Math.min(start + part.length, inline.range.end) }
-  };
-}
-function trimEnds(field) {
-  const trimmed2 = [...field];
-  const first = trimmed2[0];
-  if (first?.kind === "text") trimmed2[0] = { ...first, value: first.value.replace(/^\s+/u, "") };
-  const lastIndex = trimmed2.length - 1;
-  const final = trimmed2[lastIndex];
-  if (final?.kind === "text") {
-    trimmed2[lastIndex] = { ...final, value: final.value.replace(/\s+$/u, "") };
-  }
-  return trimmed2.filter((inline) => inline.kind !== "text" || inline.value !== "");
 }
 function atLeastOne(runs) {
   const [first, ...rest] = runs;
@@ -22734,18 +22903,98 @@ function nothing(width, height) {
   return block(width, height, group({ children: [] }));
 }
 function grownTextBlock(value, width, minHeight, style2, measure, options = {}) {
-  const runs = runsIn(value, style2);
-  if (runs === void 0) return nothing(width, minHeight);
-  const measured = measure(text({ ...options, runs, box: { w: width } }));
-  if (measured === void 0) {
-    return block(
-      width,
-      minHeight,
-      text({ ...options, runs, box: { w: width, h: minHeight }, overflow: "shrink" })
-    );
+  const { given, rest } = splitOptions(options);
+  return withoutAnchor(
+    grownTextIn(
+      value,
+      { width, height: Infinity },
+      style2,
+      { ...given, minHeight },
+      { measure, text: rest }
+    )
+  );
+}
+var TEXT_PARAMETERS = {
+  lineHeight: {
+    kind: "ratio",
+    default: 1.2,
+    min: 0,
+    description: "From one line to the next, as a multiple of the size."
+  },
+  letterSpacing: { kind: "length", default: 0, description: "Space added between letters, in px." },
+  align: {
+    kind: "choice",
+    default: "left",
+    choices: ["left", "center", "right", "justify"],
+    description: "Where each line sits across the box."
+  },
+  valign: {
+    kind: "choice",
+    default: "top",
+    choices: ["top", "middle", "bottom"],
+    description: "Where the lines sit down the box."
+  },
+  overflow: {
+    kind: "choice",
+    default: "clip",
+    choices: ["clip", "shrink", "grow"],
+    description: "What the text does when it does not fit its box."
   }
-  const height = Math.max(minHeight, measured.height);
-  return block(width, height, text({ ...options, runs, box: { w: width, h: height } }));
+};
+var GROWN_TEXT_PARAMETERS = {
+  ...TEXT_PARAMETERS,
+  minHeight: {
+    kind: "length",
+    default: 0,
+    min: 0,
+    description: "The least height the block takes, in px, however few its lines."
+  }
+};
+function grownTextIn(value, area, style2, given = {}, options = {}) {
+  const { minHeight, ...values } = parameterValues(GROWN_TEXT_PARAMETERS, given);
+  const width = area.width;
+  const runs = runsIn(value, style2);
+  if (runs === void 0) return { ...nothing(width, minHeight), overflow: 0 };
+  const node2 = (box, overflow = values.overflow) => text({ ...options.text, runs, box, ...values, overflow });
+  const measured = (options.measure ?? (() => void 0))(node2({ w: width }));
+  const finished = measured === void 0 ? { height: minHeight, draft: node2({ w: width, h: minHeight }, "shrink") } : (() => {
+    const height = Math.max(minHeight, measured.height);
+    return { height, draft: node2({ w: width, h: height }) };
+  })();
+  const lines2 = measured?.lines ?? linesWritten2(runs);
+  return {
+    width,
+    height: finished.height,
+    draft: finished.draft,
+    anchor: anchorIn(finished.height, lines2, style2.size, values, options.metrics),
+    overflow: Number.isFinite(area.height) ? Math.max(0, finished.height - area.height) : 0
+  };
+}
+function linesWritten2(runs) {
+  return runs.filter((each) => each.kind === "break").length + 1;
+}
+function anchorIn(boxHeight, lines2, size, values, metrics = DEFAULT_METRICS) {
+  const pitch = size * values.lineHeight;
+  const room = boxHeight - lines2 * pitch;
+  const top = values.valign === "middle" ? room / 2 : values.valign === "bottom" ? room : 0;
+  const capTop = top + capOffset(size, values.lineHeight, metrics);
+  return { capTop, baseline: capTop + (lines2 - 1) * pitch + size * metrics.capHeight };
+}
+function splitOptions(options) {
+  const { lineHeight, letterSpacing, align, valign, overflow, ...rest } = options;
+  return {
+    given: {
+      ...lineHeight === void 0 ? {} : { lineHeight },
+      ...letterSpacing === void 0 ? {} : { letterSpacing },
+      ...align === void 0 ? {} : { align },
+      ...valign === void 0 ? {} : { valign },
+      ...overflow === void 0 ? {} : { overflow }
+    },
+    rest
+  };
+}
+function withoutAnchor(item) {
+  return { width: item.width, height: item.height, draft: item.draft };
 }
 function naturalWidth(value, style2, measure) {
   const runs = runsIn(value, style2);
@@ -22754,11 +23003,11 @@ function naturalWidth(value, style2, measure) {
   return measured === void 0 ? void 0 : Math.ceil(measured.width);
 }
 var DIVIDER = "---";
-function levelsOf(text2, options = {}) {
+function levelsOf(text5, options = {}) {
   const byPosition = options.readByPosition ?? true;
   const items = [];
   let pendingParagraph = false;
-  for (const { inlines: line, paragraph } of blockLines(text2)) {
+  for (const { inlines: line, paragraph } of blockLines(text5)) {
     pendingParagraph ||= paragraph;
     const written = plain(line).trim();
     if (written === "") continue;
@@ -22776,9 +23025,9 @@ function levelsOf(text2, options = {}) {
   }
   return items;
 }
-function blockLines(text2) {
+function blockLines(text5) {
   const result = [{ inlines: [], paragraph: false }];
-  for (const inline of text2) {
+  for (const inline of text5) {
     if (inline.kind === "break" && inline.typed !== true) {
       result.push({ inlines: [], paragraph: inline.paragraph === true });
     } else result[result.length - 1].inlines.push(inline);
@@ -22804,9 +23053,9 @@ function piecesOf(part) {
 function trimmedEnds(piece) {
   const inlines = [...piece];
   const first = inlines[0];
-  if (first?.kind === "text") inlines[0] = trimmed(first, "start");
+  if (first?.kind === "text") inlines[0] = trimmed2(first, "start");
   const last = inlines[inlines.length - 1];
-  if (last?.kind === "text") inlines[inlines.length - 1] = trimmed(last, "end");
+  if (last?.kind === "text") inlines[inlines.length - 1] = trimmed2(last, "end");
   return inlines;
 }
 function tidied(part) {
@@ -22814,15 +23063,15 @@ function tidied(part) {
   inlines.forEach((inline, index) => {
     if (inline.kind !== "break") return;
     const before = inlines[index - 1];
-    if (before?.kind === "text") inlines[index - 1] = trimmed(before, "end");
+    if (before?.kind === "text") inlines[index - 1] = trimmed2(before, "end");
     const after = inlines[index + 1];
-    if (after?.kind === "text") inlines[index + 1] = trimmed(after, "start");
+    if (after?.kind === "text") inlines[index + 1] = trimmed2(after, "start");
   });
   while (inlines[0]?.kind === "break") inlines.shift();
   while (inlines[inlines.length - 1]?.kind === "break") inlines.pop();
   return inlines.filter((inline) => inline.kind !== "text" || inline.value !== "");
 }
-function trimmed(inline, side) {
+function trimmed2(inline, side) {
   const value = side === "start" ? inline.value.trimStart() : inline.value.trimEnd();
   const cut2 = inline.value.length - value.length;
   const range = side === "start" ? { start: Math.min(inline.range.start + cut2, inline.range.end), end: inline.range.end } : { start: inline.range.start, end: Math.max(inline.range.end - cut2, inline.range.start) };
@@ -22869,7 +23118,21 @@ function joinedOf(part) {
   return part.joined === true ? { joined: true } : {};
 }
 function levelStack(items, style2, width, measure) {
-  const align = style2.align ?? "center";
+  const drawn = levelStackIn({ width, height: Infinity }, items, style2, {}, { measure });
+  return { width: drawn.width, height: drawn.height, draft: drawn.draft };
+}
+var LEVEL_STACK_PARAMETERS = {
+  align: {
+    kind: "choice",
+    default: "center",
+    choices: ["start", "center", "end"],
+    description: "Where each row sits across the stack, when the style does not say."
+  }
+};
+function levelStackIn(area, items, style2, given = {}, options = {}) {
+  const width = area.width;
+  const measure = options.measure ?? (() => void 0);
+  const align = given.align ?? style2.align ?? LEVEL_STACK_PARAMETERS.align.default;
   const lineGap = style2.lineGap ?? style2.gap;
   const drawn = [];
   for (const item of items) {
@@ -22887,10 +23150,12 @@ function levelStack(items, style2, width, measure) {
   );
   let y = 0;
   const children = [];
+  const placed = [];
   for (const [index, each] of kept.entries()) {
     if (index > 0) y += spaceOf(lineGap, kept[index - 1].item, each.item);
     if (each.kind === "divider") {
       children.push(at(offsetOf(align, width, each.drawing.width), y, each.drawing));
+      placed.push({ top: y, item: each.drawing });
       y += each.drawing.height;
       continue;
     }
@@ -22900,11 +23165,21 @@ function levelStack(items, style2, width, measure) {
         y += spaceOf(style2.gap, each.item.parts[row2 - 1], part);
       }
       children.push(at(offsetOf(align, width, piece.width), y, piece));
+      placed.push({ top: y, item: piece });
       y += piece.height;
     }
   }
-  if (children.length === 0) return stack({ name: style2.name, items: [] });
-  return block(width, y, group({ name: style2.name, children }));
+  if (children.length === 0) return { ...stack({ name: style2.name, items: [] }), overflow: 0 };
+  const first = placed[0];
+  const last = placed[placed.length - 1];
+  return {
+    ...block(width, y, group({ name: style2.name, children })),
+    anchor: {
+      capTop: first.top + anchorOf(first.item).capTop,
+      baseline: last.top + anchorOf(last.item).baseline
+    },
+    overflow: Number.isFinite(area.height) ? Math.max(0, y - area.height) : 0
+  };
 }
 function spaceOf(gap, above, below) {
   return typeof gap === "number" ? gap : gap(above, below);
@@ -22913,33 +23188,24 @@ function rowOf(part, index, style2, width, measure, align) {
   const look = style2.look(part);
   const lineHeight = look.lineHeight ?? 1.2;
   const words = look.transform === void 0 ? part.words : look.transform(part.words);
-  return grownTextBlock(words, width, look.style.size * lineHeight, look.style, measure, {
-    name: `${style2.name}-${part.position}-${index}`,
-    align: TEXT_ALIGN[align],
-    lineHeight,
-    ...look.letterSpacing === void 0 ? {} : { letterSpacing: look.letterSpacing }
-  });
+  return grownTextIn(
+    words,
+    { width, height: Infinity },
+    look.style,
+    {
+      minHeight: look.style.size * lineHeight,
+      align: TEXT_ALIGN[align],
+      lineHeight,
+      ...look.letterSpacing === void 0 ? {} : { letterSpacing: look.letterSpacing }
+    },
+    { measure, text: { name: `${style2.name}-${part.position}-${index}` } }
+  );
 }
 var TEXT_ALIGN = { start: "left", center: "center", end: "right" };
 function offsetOf(align, width, itemWidth) {
   if (align === "center") return (width - itemWidth) / 2;
   if (align === "end") return width - itemWidth;
   return 0;
-}
-function parameterValues(schema, given = {}) {
-  const values = {};
-  for (const [name, declared] of Object.entries(schema)) {
-    const value = given[name];
-    values[name] = valueWithin(declared, value);
-  }
-  return values;
-}
-function valueWithin(declared, value) {
-  if (declared.kind === "choice") {
-    return typeof value === "string" && declared.choices.includes(value) ? value : declared.default;
-  }
-  if (typeof value !== "number" || Number.isNaN(value)) return declared.default;
-  return Math.min(declared.max ?? Infinity, Math.max(declared.min ?? -Infinity, value));
 }
 var BODY_PARAMETERS = {
   unmarkedRatio: {
@@ -23024,6 +23290,12 @@ var BLOCK_COLUMN_PARAMETERS = {
     default: "center",
     choices: ["start", "center", "end"],
     description: "Where a block narrower than the area sits across it."
+  },
+  measureFrom: {
+    kind: "choice",
+    default: "box",
+    choices: ["box", "capitals"],
+    description: "Where a gap runs from: one block's foot to the next one's top, or one block's last baseline to the next one's first capitals (ADR 0230 decision 2, TYTO-891)."
   },
   weight1: {
     kind: "ratio",
@@ -23220,9 +23492,10 @@ function blockColumn(area, options) {
   const gapOf2 = (above, below) => Math.max(0, options.gapBetween?.(above, below) ?? values.gap);
   const bounded = Number.isFinite(area.height);
   let shrink = 1;
-  let laid = measuredAt(entries, area, 1, gapOf2);
+  const capitals2 = values.measureFrom === "capitals";
+  let laid = measuredAt(entries, area, 1, gapOf2, capitals2);
   if (bounded && laid.content > area.height && values.shrinkFloor < 1) {
-    const floor = measuredAt(entries, area, values.shrinkFloor, gapOf2);
+    const floor = measuredAt(entries, area, values.shrinkFloor, gapOf2, capitals2);
     if (floor.content > area.height) {
       shrink = values.shrinkFloor;
       laid = floor;
@@ -23232,7 +23505,7 @@ function blockColumn(area, options) {
       let fitting = floor;
       while (tooTall - fits > SHRINK_PRECISION) {
         const middle = (fits + tooTall) / 2;
-        const tried = measuredAt(entries, area, middle, gapOf2);
+        const tried = measuredAt(entries, area, middle, gapOf2, capitals2);
         if (tried.content <= area.height) {
           fits = middle;
           fitting = tried;
@@ -23275,7 +23548,7 @@ function blockColumn(area, options) {
   };
 }
 var SHRINK_PRECISION = 5e-3;
-function measuredAt(entries, area, factor, gapOf2) {
+function measuredAt(entries, area, factor, gapOf2, capitals2) {
   const measured = [];
   for (const entry of entries) {
     const scale = (entry.scale ?? 1) * factor;
@@ -23287,7 +23560,10 @@ function measuredAt(entries, area, factor, gapOf2) {
   }
   const gaps = measured.map((item, index) => {
     const below = measured[index + 1];
-    return below === void 0 ? 0 : gapOf2(item.name, below.name) * below.distance;
+    if (below === void 0) return 0;
+    const gap = gapOf2(item.name, below.name) * below.distance;
+    if (!capitals2) return gap;
+    return gap + (anchorOf(item.block).baseline - item.block.height) - anchorOf(below.block).capTop;
   });
   const content = measured.reduce((sum, item, index) => sum + item.block.height + gaps[index], 0);
   return { measured, gaps, content };
@@ -23353,18 +23629,191 @@ function reportOverflow(report, bottom, limit) {
   const overflow = bottom - limit;
   if (overflow > 0) report({ code: "W_TEMPLATE_OVERFLOW", overflow });
 }
+var FIT_TEXT_PARAMETERS = {
+  floor: { kind: "length", default: 24, min: 1, description: "The smallest size, in px." },
+  ceiling: { kind: "length", default: 48, min: 1, description: "The largest size, in px." },
+  step: {
+    kind: "length",
+    default: 1,
+    min: 0,
+    description: "From one size tried to the next, in px. 0 is continuous: `oneLine` solves for the size that makes the line exactly as wide as the area."
+  },
+  start: {
+    kind: "choice",
+    default: "ceiling",
+    choices: ["ceiling", "whole"],
+    description: "The first size tried: the ceiling itself, or the whole pixel at or under it."
+  },
+  floorLast: {
+    kind: "choice",
+    default: "always",
+    choices: ["always", "on-step"],
+    description: "Whether the floor is tried last even when the step misses it, or only if hit."
+  },
+  lineHeight: {
+    kind: "ratio",
+    default: 1.2,
+    min: 0.5,
+    description: "From one line to the next, as a multiple of the size."
+  },
+  lineCap: {
+    kind: "length",
+    default: 0,
+    min: 0,
+    description: "The most lines a fitting size may take; 0 is no cap."
+  },
+  keepWrittenLines: {
+    kind: "choice",
+    default: "no",
+    choices: ["first", "no"],
+    description: "`first`: look for a size that keeps the lines as written before one that wraps them."
+  },
+  widthTolerance: {
+    kind: "length",
+    default: 0.5,
+    min: 0,
+    description: "Px a line may run past the area and still fit, for the rounding of a measure."
+  },
+  measureFrom: {
+    kind: "choice",
+    default: "box",
+    choices: ["box", "capitals"],
+    description: "How tall the text is against the area: its line boxes, or from its first capitals to its last baseline (ADR 0230)."
+  },
+  estimatedAdvance: {
+    kind: "ratio",
+    default: 0.55,
+    min: 0,
+    description: "A character's advance, in em, when nothing can measure the text."
+  },
+  align: {
+    kind: "choice",
+    default: "left",
+    choices: ["left", "center", "right"],
+    description: "Where each line sits across the area."
+  }
+};
+var ORPHAN_LIMITS = { shrink: 0.08, tracking: 0.01 };
+var FITTED_COLUMN_PARAMETERS = {
+  floor: FIT_TEXT_PARAMETERS.floor,
+  ceiling: FIT_TEXT_PARAMETERS.ceiling,
+  step: FIT_TEXT_PARAMETERS.step,
+  start: FIT_TEXT_PARAMETERS.start,
+  floorLast: FIT_TEXT_PARAMETERS.floorLast,
+  gapFloor: {
+    kind: "length",
+    default: 24,
+    min: 0,
+    description: "The least a gap's unit may be, in px: a gap of weight w is at least w \xD7 this."
+  },
+  orphanShrink: {
+    kind: "ratio",
+    default: ORPHAN_LIMITS.shrink,
+    min: 0,
+    description: "How far under its fitted size the text may go to keep a word off a line alone."
+  },
+  orphanTracking: {
+    kind: "length",
+    default: ORPHAN_LIMITS.tracking,
+    min: 0,
+    description: "The most letter spacing, in em, a text may take or give for the same."
+  }
+};
+var PICTURE_SHAPE_PARAMETERS = {
+  widest: {
+    kind: "ratio",
+    default: 3,
+    min: 0,
+    description: "The widest shape the picture may take, as width over height."
+  },
+  tallest: {
+    kind: "ratio",
+    default: 1,
+    min: 0,
+    description: "The tallest shape the picture may take, as width over height; a taller file is fitted whole."
+  },
+  fallback: {
+    kind: "ratio",
+    default: 2,
+    min: 0,
+    description: "The picture's shape, as width over height, when the file's size is unknown."
+  },
+  fit: {
+    kind: "choice",
+    default: "auto",
+    choices: ["auto", "cover", "contain"],
+    description: "How the file fills the picture: `auto` covers it when the picture took the file\u2019s own shape and fits it whole otherwise."
+  }
+};
+var FRAMED_PICTURE_PARAMETERS = {
+  ...PICTURE_SHAPE_PARAMETERS,
+  border: {
+    kind: "length",
+    default: 4,
+    min: 0,
+    description: "The border on the top, the right and the foot, in px."
+  },
+  side: {
+    kind: "length",
+    default: 29,
+    min: 0,
+    description: "The bar down the left side, border included, in px."
+  },
+  radius: {
+    kind: "length",
+    default: 32,
+    min: 0,
+    description: "The inside's two left corners, where it meets the bar, in px."
+  },
+  shadowX: { kind: "length", default: 17, description: "The shadow's offset to the right, in px." },
+  shadowY: { kind: "length", default: 47, description: "The shadow's offset down, in px." },
+  shadowBlur: {
+    kind: "length",
+    default: 12,
+    min: 0,
+    description: "The shadow's blur, a standard deviation in px."
+  },
+  shadowSpread: {
+    kind: "length",
+    default: -20,
+    description: "How much wider than the frame the shadow is on every side; below 0, narrower."
+  }
+};
 function naturalCardHeight(segments) {
   return segments.reduce((sum, segment) => sum + heightOf(segment), 0);
 }
 function card(segments, style2, report) {
+  const drawn = cardIn({ width: style2.width, height: style2.height ?? Infinity }, segments, style2);
+  if (report !== void 0 && style2.height !== void 0 && segments.length > 0) {
+    reportOverflow(report, drawn.overflow, 0);
+  }
+  return { width: drawn.width, height: drawn.height, draft: drawn.draft, segments: drawn.segments };
+}
+var CARD_PARAMETERS = {
+  radius: {
+    kind: "length",
+    default: 0,
+    min: 0,
+    description: "The card's corner radius, in px; a band at an edge takes that edge's corners."
+  }
+};
+function cardIn(area, segments, style2, given = {}) {
+  const bounded = Number.isFinite(area.height);
+  const { height: _height, ...unsized } = style2;
+  return drawCard(segments, {
+    ...unsized,
+    width: area.width,
+    radius: given.radius === void 0 ? style2.radius : parameterValues(CARD_PARAMETERS, given).radius,
+    ...bounded ? { height: area.height } : {}
+  });
+}
+function drawCard(segments, style2) {
   if (segments.length === 0) {
-    return { ...block(0, 0, group({ name: style2.name, children: [] })), segments: [] };
+    return { ...block(0, 0, group({ name: style2.name, children: [] })), segments: [], overflow: 0 };
   }
   const natural = naturalCardHeight(segments);
   const height = style2.height ?? natural;
-  if (report !== void 0 && style2.height !== void 0) {
-    reportOverflow(report, natural, style2.height);
-  }
+  const overflow = style2.height !== void 0 && natural - style2.height > 0 ? natural - style2.height : 0;
   const room = Math.max(0, height - natural);
   const roomBefore = segments.length > 1 ? segments.length - 1 : 1;
   const placed = [];
@@ -23402,7 +23851,7 @@ function card(segments, style2, report) {
     ...style2.stroke === void 0 ? {} : { stroke: style2.stroke }
   });
   const drawn = group({ name: style2.name, children: [outline, ...bands, ...words] });
-  return { ...block(style2.width, height, drawn), segments: placed };
+  return { ...block(style2.width, height, drawn), segments: placed, overflow };
 }
 function cardSegments(items, draw, minHeight = {}) {
   const parts = items.flatMap((item) => item.kind === "line" ? item.parts : []);
@@ -23424,7 +23873,7 @@ function heightOf(segment) {
 }
 var NO_FILL = solid({ r: 0, g: 0, b: 0, a: 0 });
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-KTMH3XT2.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/chunk-KTMH3XT2.js
 var PLACEHOLDER_LOGO = {
   box: { w: 186.09, h: 376.79 },
   d: (
@@ -23511,7 +23960,7 @@ function drawPattern(kit, options) {
   );
 }
 
-// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.2/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
+// node_modules/.pnpm/@rafaelsilvalor+tyto-house-style@0.9.4/node_modules/@rafaelsilvalor/tyto-house-style/dist/index.js
 var TITLE_INK = "#7c7c7c";
 var ROW_INK = "#393939";
 var FACE = systemFont("CircularXX");
